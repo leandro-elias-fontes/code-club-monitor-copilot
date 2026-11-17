@@ -1,0 +1,110 @@
+[
+  {
+    "id": "ykw_complexity_limits",
+    "source": "YouKn0wWho",
+    "title": "Complexidade Big-O vs Limites de N em 1 segundo",
+    "category": "Complexidade",
+    "tags": ["big-o", "tle", "complexidade", "loops", "n=10^5", "o(n^2)"],
+    "expected_complexity": "O(N) ou O(N log N) para N <= 10^5; O(N^2) apenas para N <= 5000",
+    "n_limits": "N <= 10^5 exige <= O(N log N); N <= 10^6 exige O(N)",
+    "technical_summary": "Juizes online executam cerca de 10^8 operacoes simples por segundo em C++ e ~10^7 em Python. Se N = 10^5 e o codigo possui dois lacos aninhados (O(N^2) ~ 10^10 ops), ocorrera Time Limit Exceeded (TLE).",
+    "common_mistakes": "Usar dois lacos for aninhados para buscar pares, contar frequencias ou checar subarrays quando N >= 10^4; usar list.pop(0) ou 'in list' dentro de laco em Python (O(N^2)).",
+    "url": "https://youkn0wwho.academy/topic-list/time_complexity"
+  },
+  {
+    "id": "ykw_prefix_sums",
+    "source": "YouKn0wWho",
+    "title": "Prefix Sums (Somas de Prefixo 1D e 2D)",
+    "category": "Tecnicas Basicas",
+    "tags": ["prefix sum", "soma de prefixo", "subarray", "range sum", "off-by-one", "1-indexed"],
+    "expected_complexity": "O(N) pre-processamento, O(1) por query",
+    "n_limits": "N, Q <= 2 * 10^5",
+    "technical_summary": "Pre-calcula pref[i] = pref[i-1] + a[i] (preferencialmente 1-indexed com pref[0] = 0) para responder soma do intervalo [L, R] em O(1) via pref[R] - pref[L-1].",
+    "common_mistakes": "Esquecer o caso L = 0 em arrays 0-indexed acessando pref[-1]; declarar o vetor de prefixos como 'int' quando a soma acumulada passa de 2 * 10^9 (exige long long).",
+    "url": "https://youkn0wwho.academy/topic-list/prefix_sum"
+  },
+  {
+    "id": "ykw_two_pointers",
+    "source": "YouKn0wWho",
+    "title": "Two Pointers e Sliding Window",
+    "category": "Tecnicas Basicas",
+    "tags": ["two pointers", "sliding window", "dois ponteiros", "subarray", "monotonico"],
+    "expected_complexity": "O(N)",
+    "n_limits": "N <= 10^5 ou 10^6",
+    "technical_summary": "Mantem dois ponteiros L e R que avancam monotonicamente sem retroceder, reduzindo buscas de O(N^2) para O(N) quando a condicao e monotonica (ex: elementos positivos).",
+    "common_mistakes": "Aplicar Two Pointers em arrays com numeros negativos (quebra monotonicidade); nao verificar L <= R antes de remover elemento ou esquecer de atualizar o contador ao mover L.",
+    "url": "https://youkn0wwho.academy/topic-list/two_pointers"
+  },
+  {
+    "id": "ykw_binary_search_answer",
+    "source": "YouKn0wWho",
+    "title": "Binary Search e Binary Search on Answer",
+    "category": "Busca Binaria",
+    "tags": ["binary search", "busca binaria", "loop infinito", "mid", "lower_bound", "upper_bound"],
+    "expected_complexity": "O(N log(MAX_VAL))",
+    "n_limits": "N <= 10^5, resposta ate 10^18",
+    "technical_summary": "Divide o espaco de busca ao meio testando uma funcao booleana monotonica ok(mid). Use 'long long mid = l + (r - l) / 2' para evitar overflow de (l + r).",
+    "common_mistakes": "Loop infinito quando mid = (l + r) / 2 (arredonda para baixo) e o codigo faz l = mid com r = l + 1; overflow em (l + r) quando l, r ~ 2e9; limite superior r pequeno demais.",
+    "url": "https://youkn0wwho.academy/topic-list/binary_search"
+  },
+  {
+    "id": "ykw_bit_manipulation",
+    "source": "YouKn0wWho",
+    "title": "Bit Manipulation e Bitmasks",
+    "category": "Bits",
+    "tags": ["bitwise", "bitmask", "shift", "1 << i", "1ll << i", "xor", "and"],
+    "expected_complexity": "O(1) por operacao ou O(2^N * N) para subsets",
+    "n_limits": "N <= 20 para bitmask DP/subsets; bits ate 60 com long long",
+    "technical_summary": "Operacoes bit a bit manipulam potencias de 2 e subconjuntos. Em C++, shifts acima de 30 bits exigem '1LL << i' porque '1' literal tem tipo int (32 bits).",
+    "common_mistakes": "Escrever '1 << i' para i >= 31 (Undefined Behavior em C++); errar precedencia de operadores porque '==' tem maior precedencia que '&' (escrever 'x & 1 == 0' em vez de '(x & 1) == 0').",
+    "url": "https://youkn0wwho.academy/topic-list/bitwise_operations"
+  },
+  {
+    "id": "ykw_number_theory",
+    "source": "YouKn0wWho",
+    "title": "Teoria dos Numeros, Crivo e Aritmetica Modular",
+    "category": "Matematica",
+    "tags": ["primo", "crivo", "sieve", "gcd", "mdc", "mod", "modulo", "exponenciacao rapida"],
+    "expected_complexity": "Crivo O(N log log N), MDC O(log min(A,B)), ModPow O(log E)",
+    "n_limits": "Crivo ate N <= 10^7; fatoracao O(sqrt(N)) para N <= 10^12",
+    "technical_summary": "Crivo de Eratostenes marca multiplos a partir de i*i. Exponenciacao binaria calcula (a^b) % M em O(log b) multiplicando em long long antes do modulo.",
+    "common_mistakes": "Overflow em i * i dentro do crivo quando i > 46340 (use long long); modulo de numero negativo em C++ retornando negativo (faca ((a % m) + m) % m); esquecer % M em passos intermediarios.",
+    "url": "https://youkn0wwho.academy/topic-list/number_theory"
+  },
+  {
+    "id": "ykw_greedy",
+    "source": "YouKn0wWho",
+    "title": "Algoritmos Gulosos (Greedy) e Ordenacao de Intervalos",
+    "category": "Greedy",
+    "tags": ["greedy", "guloso", "sort", "intervalos", "scheduling", "comparador"],
+    "expected_complexity": "O(N log N)",
+    "n_limits": "N <= 2 * 10^5",
+    "technical_summary": "Ordena elementos por um criterio guloso provado por troca de elementos (exchange argument), como ordenar intervalos pelo tempo de termino crescente.",
+    "common_mistakes": "Comparador customizado no std::sort violando strict weak ordering (usar '<=' em vez de '<' causa crash/segfault em C++); ordenar intervalos pelo inicio em vez do fim no problema de escalonamento.",
+    "url": "https://youkn0wwho.academy/topic-list/greedy"
+  },
+  {
+    "id": "ykw_dp_intro",
+    "source": "YouKn0wWho",
+    "title": "Programacao Dinamica (DP) - Estados, Transicoes e Memoizacao",
+    "category": "Programacao Dinamica",
+    "tags": ["dp", "dynamic programming", "memoizacao", "recursao", "caso base", "overflow"],
+    "expected_complexity": "Numero de Estados * Custo de Transicao",
+    "n_limits": "Estados * Transicoes <= 10^7",
+    "technical_summary": "Decompoe problemas em subproblemas sobrepostos com subestrutura otima. Requer definicao clara do estado, caso base na recursao/tabela e ordem topologica no bottom-up.",
+    "common_mistakes": "Falta de caso base na recursao causando Stack Overflow/RecursionError; inicializar tabela DP com -1 quando a resposta valida pode ser negativa; estourar memoria com matriz N x N quando N = 10^5.",
+    "url": "https://youkn0wwho.academy/topic-list/dynamic_programming"
+  },
+  {
+    "id": "ykw_graphs_basics",
+    "source": "YouKn0wWho",
+    "title": "Grafos: BFS, DFS, Componentes e Dijkstra",
+    "category": "Grafos",
+    "tags": ["grafo", "bfs", "dfs", "dijkstra", "visited", "fila", "priority_queue"],
+    "expected_complexity": "BFS/DFS O(V + E), Dijkstra O((V + E) log V)",
+    "n_limits": "V, E <= 2 * 10^5",
+    "technical_summary": "BFS encontra menor caminho em grafos sem peso; Dijkstra usa priority_queue (min-heap) em grafos com pesos nao-negativos. Sempre marque o vertice como visitado ao inserir na fila da BFS.",
+    "common_mistakes": "Marcar 'visited' apenas ao remover da fila na BFS (re-enfileira o mesmo no varias vezes dando TLE/MLE); usar matriz de adjacencia N x N para N = 10^5; usar INF = 1e9 no Dijkstra quando caminhos somam > 10^14.",
+    "url": "https://youkn0wwho.academy/topic-list/graph_theory"
+  }
+]

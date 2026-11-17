@@ -1,0 +1,62 @@
+[
+  {
+    "id": "cf_int_overflow",
+    "source": "Codeforces",
+    "title": "Codeforces: Overflow de int 32-bit vs long long",
+    "category": "Armadilhas C++",
+    "tags": ["codeforces", "overflow", "int", "long long", "10^9", "multiplicacao"],
+    "expected_complexity": "N/A (Tipo de dados)",
+    "n_limits": "Valores ate 10^9 ou somas/produtos ate 10^18",
+    "technical_summary": "Em Codeforces, e comum a entrada ter valores ate 10^9 ou N <= 10^5. Mesmo quando a resposta final parece caber em int, multiplicacoes intermediarias (ex: a * b) entre dois ints sao feitas em 32 bits antes de converter para long long.",
+    "common_mistakes": "Escrever 'long long x = a * b;' com a e b sendo 'int' (overflow acontece antes da atribuicao); usar 'accumulate(v.begin(), v.end(), 0)' com literal 0 (int) em vez de '0LL'.",
+    "url": "https://codeforces.com/blog/entry/15643"
+  },
+  {
+    "id": "cf_endl_tle",
+    "source": "Codeforces",
+    "title": "Codeforces: std::endl vs '\\n' causando TLE",
+    "category": "I/O e Performance",
+    "tags": ["codeforces", "endl", "tle", "fast io", "flush", "cout"],
+    "expected_complexity": "O(1) por linha sem flush",
+    "n_limits": "Saidas com >= 10^5 linhas",
+    "technical_summary": "std::endl imprime quebra de linha e chama std::flush no buffer do sistema operacional. Dentro de um laco com 10^5 iteracoes, isso gera 10^5 syscalls e causa TLE mesmo em algoritmos O(N).",
+    "common_mistakes": "Usar 'cout << ans << endl;' dentro de loops em problemas com muitas queries ou multi-testcases; esquecer 'ios::sync_with_stdio(false); cin.tie(nullptr);' em C++ ou usar input() lento em Python em vez de sys.stdin.read.",
+    "url": "https://codeforces.com/blog/entry/5217"
+  },
+  {
+    "id": "cf_unordered_map_hack",
+    "source": "Codeforces",
+    "title": "Codeforces: Colisao de Hash em unordered_map (Anti-Hash Test)",
+    "category": "Estruturas de Dados",
+    "tags": ["codeforces", "unordered_map", "hash", "tle", "hack", "splitmix64"],
+    "expected_complexity": "O(N log N) com std::map ou O(N) com custom hash",
+    "n_limits": "N <= 2 * 10^5",
+    "technical_summary": "Em rounds abertos (hacks) ou testes do Codeforces, o unordered_map padrao do GCC sofre colisoes propositais com multiplos de primos internos, degradando de O(1) para O(N) por acesso e gerando O(N^2) TLE.",
+    "common_mistakes": "Usar 'unordered_map<int, int>' ou 'dict' com chaves inteiras previsiveis em problemas do Codeforces sem custom hash (splitmix64); preferir std::map (O(log N) garantido) ou gp_hash_table com custom_hash.",
+    "url": "https://codeforces.com/blog/entry/62393"
+  },
+  {
+    "id": "cf_floating_point",
+    "source": "Codeforces",
+    "title": "Codeforces: Precisao de Ponto Flutuante (double vs long double)",
+    "category": "Matematica e Geometria",
+    "tags": ["codeforces", "double", "float", "precisao", "sqrt", "eps"],
+    "expected_complexity": "O(1)",
+    "n_limits": "Coordenadas ate 10^9, erros de 1e-9",
+    "technical_summary": "double possui apenas ~15-17 digitos significativos. Comparar igualdade direta (a == b) ou usar sqrt/pow em inteiros grandes (ex: 10^18) introduz erro de arredondamento.",
+    "common_mistakes": "Comparar doubles com '==' em vez de 'abs(a - b) < 1e-9'; usar 'pow(x, 2)' ou 'sqrt(n)' para checar quadrado perfeito com valores > 10^15 sem ajustar +/- 1; esquecer 'cout << fixed << setprecision(10)'.",
+    "url": "https://codeforces.com/blog/entry/72815"
+  },
+  {
+    "id": "cf_edge_cases_n1",
+    "source": "Codeforces",
+    "title": "Codeforces: Casos de Borda (N=1, Array Vazio, Todos Iguais)",
+    "category": "Casos de Borda",
+    "tags": ["codeforces", "edge case", "borda", "n=1", "out of bounds", "wa"],
+    "expected_complexity": "N/A",
+    "n_limits": "N = 1, valores iguais ou negativos",
+    "technical_summary": "Pretests do Codeforces costumam omitir casos extremos como N=1, N=2 ou todos os elementos iguais, que derrubam a submissao nos system tests.",
+    "common_mistakes": "Acessar a[1] ou v[n-2] sem checar se n >= 2; usar 'i <= n' em laco 0-indexed acessando v[n]; inicializar variavel de maximo com 0 quando todos os numeros do array sao negativos.",
+    "url": "https://codeforces.com/blog/entry/11121"
+  }
+]

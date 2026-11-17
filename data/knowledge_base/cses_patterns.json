@@ -1,0 +1,86 @@
+[
+  {
+    "id": "cses_intro_missing_weird",
+    "source": "CSES",
+    "title": "CSES Introductory Problems (Weird Algorithm, Missing Number)",
+    "category": "Introductory Problems",
+    "tags": ["cses", "introductory", "overflow", "long long", "weird algorithm", "missing number"],
+    "expected_complexity": "O(N) ou O(log N)",
+    "n_limits": "N <= 10^6",
+    "technical_summary": "Problemas introdutorios do CSES testam simulacao direta e formulas matematicas como soma de PA N*(N+1)/2. Em Weird Algorithm (Collatz), N = 10^6 sobe acima de 2^31-1 nos passos intermediarios.",
+    "common_mistakes": "Declarar N como 'int' em Weird Algorithm ou N*(N+1)/2 em Missing Number: o produto N*(N+1) estoura int 32-bit a partir de N ~ 46341.",
+    "url": "https://cses.fi/problemset/task/1068"
+  },
+  {
+    "id": "cses_subarray_sums",
+    "source": "CSES",
+    "title": "CSES Sorting & Searching: Subarray Sums I e II",
+    "category": "Sorting and Searching",
+    "tags": ["cses", "subarray", "prefix sum", "map", "two pointers", "negativos"],
+    "expected_complexity": "O(N) com Two Pointers (positivos) ou O(N log N) com map (com negativos)",
+    "n_limits": "N <= 2 * 10^5, valores entre -10^9 e 10^9",
+    "technical_summary": "Subarray Sums I (positivos) aceita Two Pointers em O(N). Subarray Sums II permite valores negativos, exigindo contagem de somas de prefixo vistas anteriormente em map/hash: cnt[pref - X].",
+    "common_mistakes": "Tentar usar Two Pointers no Subarray Sums II com numeros negativos; esquecer de inicializar cnt[0] = 1 para subarrays que comecam no indice 0; usar unordered_map sem hash customizado tomando TLE.",
+    "url": "https://cses.fi/problemset/task/1661"
+  },
+  {
+    "id": "cses_coin_combinations",
+    "source": "CSES",
+    "title": "CSES DP: Coin Combinations I vs II (Ordem dos Lacos)",
+    "category": "Dynamic Programming",
+    "tags": ["cses", "dp", "coin combinations", "moedas", "ordem dos lacos", "modulo"],
+    "expected_complexity": "O(N * X)",
+    "n_limits": "N <= 100 moedas, soma X <= 10^6, modulo 10^9 + 7",
+    "technical_summary": "Coin Combinations I conta permutacoes (ordem importa): laco externo na soma x, interno nas moedas. Coin Combinations II conta combinacoes ordenadas (ordem nao importa): laco externo nas moedas, interno na soma x.",
+    "common_mistakes": "Inverter a ordem dos dois lacos for entre a versao I e II; esquecer '% MOD' dentro do laco interno causando overflow de int; usar DP recursiva top-down em Python com X = 10^6 estourando limite de recursao.",
+    "url": "https://cses.fi/problemset/task/1635"
+  },
+  {
+    "id": "cses_shortest_routes_dijkstra",
+    "source": "CSES",
+    "title": "CSES Graphs: Shortest Routes I (Dijkstra com Pesos Grandes)",
+    "category": "Graph Algorithms",
+    "tags": ["cses", "dijkstra", "grafo", "inf", "long long", "arestas paralelas"],
+    "expected_complexity": "O((N + M) log N)",
+    "n_limits": "N <= 10^5, M <= 2 * 10^5, peso ate 10^9",
+    "technical_summary": "Calcula menor caminho a partir do vertice 1 em grafo direcionado com pesos positivos. A distancia maxima pode atingir ~10^14, exigindo 'long long' e INF = 1e18 (4e18).",
+    "common_mistakes": "Usar INF = 1e9 (INT_MAX) e ter distancias maiores truncadas; esquecer a checagem 'if (d > dist[u]) continue;' apos tirar da priority_queue, causando TLE em grafos densos com arestas paralelas.",
+    "url": "https://cses.fi/problemset/task/1671"
+  },
+  {
+    "id": "cses_counting_rooms_grid",
+    "source": "CSES",
+    "title": "CSES Graphs: Counting Rooms (Flood Fill em Grid)",
+    "category": "Graph Algorithms",
+    "tags": ["cses", "grid", "dfs", "bfs", "flood fill", "stack overflow"],
+    "expected_complexity": "O(N * M)",
+    "n_limits": "N, M <= 1000 (ate 10^6 celulas)",
+    "technical_summary": "Conta componentes conexas de '.' em um grid 2D usando vetores de direcao dx/dy. Como o grid tem ate 10^6 celulas, uma linha serpenteada pode atingir profundidade de recursao de 10^6.",
+    "common_mistakes": "DFS recursiva estourando pilha (Stack Overflow / RecursionError em Python com limite 1000) em grids 1000x1000; esquecer de checar limites 0 <= nx < n && 0 <= ny < m antes de acessar grid[nx][ny].",
+    "url": "https://cses.fi/problemset/task/1192"
+  },
+  {
+    "id": "cses_range_queries",
+    "source": "CSES",
+    "title": "CSES Range Queries: Dynamic Range Sum / Minimum Queries",
+    "category": "Range Queries",
+    "tags": ["cses", "segment tree", "fenwick", "bit", "range query", "update"],
+    "expected_complexity": "O((N + Q) log N)",
+    "n_limits": "N, Q <= 2 * 10^5",
+    "technical_summary": "Consultas de soma ou minimo com atualizacoes pontuais exigem Fenwick Tree (BIT) ou Segment Tree iterativa/recursiva com vetor de tamanho 4*N.",
+    "common_mistakes": "Alocar Segment Tree com tamanho 2*N em vez de 4*N na versao recursiva (out-of-bounds); retornar neutro errado no query de minimo (retornar 0 em vez de INF); somas em int causando overflow.",
+    "url": "https://cses.fi/problemset/task/1648"
+  },
+  {
+    "id": "cses_tree_algorithms",
+    "source": "CSES",
+    "title": "CSES Tree Algorithms: Subordinates e Tree Diameter",
+    "category": "Tree Algorithms",
+    "tags": ["cses", "tree", "arvore", "dfs", "diameter", "subordinates"],
+    "expected_complexity": "O(N)",
+    "n_limits": "N <= 2 * 10^5",
+    "technical_summary": "Em arvores enraizadas, passa-se (u, parent) na DFS para evitar voltar ao pai sem precisar de vetor visited. O diametro da arvore e obtido com 2 BFS/DFS a partir de um no qualquer.",
+    "common_mistakes": "Esquecer o parametro 'parent' na DFS causando loop infinito em arestas nao-direcionadas; assumir que a arvore tem raiz 1 quando o problema pede diametro entre quaisquer dois nos.",
+    "url": "https://cses.fi/problemset/task/1131"
+  }
+]

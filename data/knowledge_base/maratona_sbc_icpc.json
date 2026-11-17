@@ -1,0 +1,50 @@
+[
+  {
+    "id": "sbc_eof_reading",
+    "source": "Maratona SBC",
+    "title": "Maratona SBC / OBI: Leitura ate EOF (while cin >> x)",
+    "category": "Entrada e Saida",
+    "tags": ["sbc", "maratona", "obi", "eof", "while", "loop infinito", "getline"],
+    "expected_complexity": "O(Input)",
+    "n_limits": "Multiplas instancias ate fim de arquivo (EOF)",
+    "technical_summary": "Problemas classicos da SBC/Beecrowd nao informam T no inicio; a entrada termina em EOF. Em C++, usa-se 'while (cin >> x)'. Em Python, itera-se sobre sys.stdin ou trata-se EOFError no input().",
+    "common_mistakes": "Usar 'while (true)' sem checar falha de leitura causando TLE; misturar 'cin >> n' com 'getline(cin, s)' sem 'cin.ignore()' consumindo a quebra de linha residual.",
+    "url": "https://maratona.sbc.org.br/"
+  },
+  {
+    "id": "sbc_global_reset",
+    "source": "Maratona SBC",
+    "title": "Maratona SBC: Multiplos Casos de Teste sem Limpar Globais",
+    "category": "Casos de Teste",
+    "tags": ["sbc", "maratona", "global", "memset", "clear", "multiplos casos", "wa"],
+    "expected_complexity": "O(N) por caso de teste (limpar apenas ate N)",
+    "n_limits": "Soma de N <= 2 * 10^5 entre todos os casos T",
+    "technical_summary": "Ao usar vetores ou listas de adjacencia globais (ex: vector<int> adj[MAXN]) com varios casos de teste T, e obrigatorio limpar apenas os indices de 0..N usados no caso atual antes do proximo caso.",
+    "common_mistakes": "Esquecer de dar '.clear()' em adj[i] ou 'memset' em arrays globais entre casos de teste (respostas do caso 1 contaminam o caso 2 -> WA); dar memset em MAXN = 10^5 dentro de T = 10^4 casos (O(T * MAXN) -> TLE).",
+    "url": "https://maratona.sbc.org.br/sobre/"
+  },
+  {
+    "id": "sbc_strict_formatting",
+    "source": "Maratona SBC",
+    "title": "Maratona SBC / ICPC: Formatacao Estrita de Saida e Espacos",
+    "category": "Presentation / WA",
+    "tags": ["sbc", "icpc", "saida", "espaco", "newline", "maiuscula", "wa"],
+    "expected_complexity": "O(1)",
+    "n_limits": "Juiz automatico (BOCA / Polygon)",
+    "technical_summary": "Juizes ICPC/SBC comparam a saida literalmente (ou ignorando apenas espacos extras dependendo do checker). Diferencas de maiuscula/minuscula ('Sim' vs 'SIM') ou barra/espaco no final da linha geram Wrong Answer.",
+    "common_mistakes": "Imprimir texto extra de debug ('Digite N:'); imprimir espaco sobrando apos o ultimo elemento de uma linha; errar grafia exata da string esperada no enunciado.",
+    "url": "https://maratona.sbc.org.br/regras/"
+  },
+  {
+    "id": "sbc_uninitialized_vars",
+    "source": "Maratona SBC",
+    "title": "OBI / SBC: Variaveis Locais Nao Inicializadas em C/C++",
+    "category": "Armadilhas C/C++",
+    "tags": ["sbc", "obi", "variavel nao inicializada", "lixo de memoria", "soma", "cnt"],
+    "expected_complexity": "O(1)",
+    "n_limits": "N/A",
+    "technical_summary": "Em C e C++, variaveis locais declaradas dentro de funcoes (como 'int soma;' ou 'int ans;') nao sao zeradas automaticamente pelo compilador e recebem lixo de memoria da stack.",
+    "common_mistakes": "Declarar 'int soma;' ou 'int cnt;' dentro do main() e fazer 'soma += x;' esperando que comece em 0 (funciona por sorte na maquina local em debug, mas da WA no juiz online).",
+    "url": "https://olimpiada.ic.unicamp.br/"
+  }
+]

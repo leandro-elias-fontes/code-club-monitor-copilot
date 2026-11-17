@@ -1,0 +1,50 @@
+[
+  {
+    "id": "atcoder_abc_modular",
+    "source": "AtCoder",
+    "title": "AtCoder ABC: Aritmetica Modular (998244353 e 10^9 + 7)",
+    "category": "Aritmetica Modular",
+    "tags": ["atcoder", "abc", "modulo", "998244353", "1000000007", "inverso modular"],
+    "expected_complexity": "O(log MOD) para inverso modular",
+    "n_limits": "N <= 2 * 10^5",
+    "technical_summary": "AtCoder frequentemente pede a resposta modulo 998244353 (primo NTT) ou 10^9 + 7. Subtracoes devem somar MOD antes de aplicar %, e divisoes exigem inverso modular via Pequeno Teorema de Fermat: a^(MOD-2) % MOD.",
+    "common_mistakes": "Dividir diretamente '(a / b) % MOD' em vez de multiplicar pelo inverso modular; esquecer '(a - b + MOD) % MOD' gerando resultado negativo em C++; errar o digito de 998244353.",
+    "url": "https://atcoder.jp/contests/abc300"
+  },
+  {
+    "id": "atcoder_dp_frog",
+    "source": "AtCoder",
+    "title": "AtCoder Educational DP: Frog 1 e Frog 2",
+    "category": "Dynamic Programming",
+    "tags": ["atcoder", "dp", "frog", "transicao", "inf", "out of bounds"],
+    "expected_complexity": "O(N * K)",
+    "n_limits": "N <= 10^5, K <= 100",
+    "technical_summary": "dp[i] representa o custo minimo para alcancar a pedra i: min(dp[j] + abs(h[i] - h[j])) para j em [max(0, i-K), i-1]. Caso base: dp[0] = 0, demais dp[i] = INF.",
+    "common_mistakes": "Acessar h[i - j] com indice negativo sem verificar 'if (i - j >= 0)'; esquecer de inicializar dp com INF (deixando 0, o que faz min() sempre retornar 0).",
+    "url": "https://atcoder.jp/contests/dp/tasks/dp_a"
+  },
+  {
+    "id": "atcoder_dp_knapsack2",
+    "source": "AtCoder",
+    "title": "AtCoder Educational DP: Knapsack 1 vs Knapsack 2 (Troca de Estado)",
+    "category": "Dynamic Programming",
+    "tags": ["atcoder", "dp", "knapsack", "mochila", "capacidade grande", "mle", "tle"],
+    "expected_complexity": "Knapsack 1: O(N * W); Knapsack 2: O(N * sum(V))",
+    "n_limits": "Knapsack 2: N <= 100, W <= 10^9, v_i <= 10^3 (sum V <= 10^5)",
+    "technical_summary": "Quando a capacidade W vai ate 10^9, a DP padrao dp[W] estoura tempo e memoria (TLE/MLE). No Knapsack 2, inverte-se o estado: dp[v] = menor peso necessario para atingir exatamente o valor v.",
+    "common_mistakes": "Tentar alocar vetor dp[W] com W = 10^9 (MLE/segfault imediato); iterar os valores em ordem crescente na mochila 0-1 (reutilizando o mesmo item infinitas vezes em vez de ordem decrescente).",
+    "url": "https://atcoder.jp/contests/dp/tasks/dp_e"
+  },
+  {
+    "id": "atcoder_dp_lcs_grid",
+    "source": "AtCoder",
+    "title": "AtCoder Educational DP: LCS (Reconstrucao) e Grid 1",
+    "category": "Dynamic Programming",
+    "tags": ["atcoder", "dp", "lcs", "grid", "reconstrucao", "modulo"],
+    "expected_complexity": "O(|S| * |T|) e O(H * W)",
+    "n_limits": "|S|, |T| <= 3000; H, W <= 1000",
+    "technical_summary": "No LCS com reconstrucao da string, calcula-se a matriz dp[i][j] e depois faz-se backtracking de (n, m) ate (0, 0). No Grid 1, dp[i][j] = (dp[i-1][j] + dp[i][j-1]) % MOD quando nao ha parede '#'.",
+    "common_mistakes": "Armazenar strings inteiras dentro de cada celula dp[i][j] no LCS (gera O(N^3) tempo e MLE); no Grid 1, nao zerar caminhos que passam por '#' ou errar o caso base dp[0][0] = 1.",
+    "url": "https://atcoder.jp/contests/dp/tasks/dp_f"
+  }
+]
