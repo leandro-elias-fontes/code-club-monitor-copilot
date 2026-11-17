@@ -2,9 +2,6 @@
 
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
-
-from api.index import app
 from src.agent import LLMDiagnosisPayload, run_copilot
 from src.demo_cache import DEMO_SCENARIOS
 from src.rag_retriever import RAGRetriever
@@ -78,28 +75,19 @@ def test_static_analyzer_detects_all_required_patterns() -> None:
     assert rep_inj.is_injection_attempt is True
 
 
-def test_five_demos_cost_zero_tokens_via_api() -> None:
-    client = TestClient(app)
-    resp = client.get("/api/demos")
-    assert resp.status_code == 200
-    demos = resp.json()
-    assert len(demos) == len(DEMO_SCENARIOS) == 5
+def test_five_demos_cost_zero_tokens() -> None:
+    assert len(DEMO_SCENARIOS) == 5
 
-    for demo in demos:
-        diag = client.post(
-            "/api/diagnose",
-            json={
-                "language": demo["language"],
-                "problem_statement": demo["problem_statement"],
-                "code": demo["code"],
-                "demo_id": demo["id"],
-            },
+    for demo in DEMO_SCENARIOS:
+        res = run_copilot(
+            language=demo["language"],
+            problem_statement=demo["problem_statement"],
+            code=demo["code"],
+            demo_id=demo["id"],
         )
-        assert diag.status_code == 200
-        body = diag.json()
-        assert body["source"] == "demo_cache"
-        assert body["tokens_used"] == 0
-        assert len(body["rag_references"]) >= 1
+        assert res.source == "demo_cache"
+        assert res.tokens_used == 0
+        assert len(res.rag_references) >= 1
 
 
 def test_langgraph_agent_with_mocked_gemini_and_injection_block() -> None:

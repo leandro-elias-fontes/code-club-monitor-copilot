@@ -1,4 +1,4 @@
-"""Lightweight in-memory TF-IDF + Cosine Similarity RAG retriever (0 external DB, Vercel ready)."""
+"""Lightweight in-memory TF-IDF + Cosine Similarity RAG retriever (0 external DB)."""
 
 from __future__ import annotations
 

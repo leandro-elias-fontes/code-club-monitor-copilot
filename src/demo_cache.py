@@ -1,4 +1,4 @@
-"""Pre-calculated zero-token demo scenarios for instant responses on Vercel."""
+"""Pre-calculated zero-token demo scenarios for instant responses."""
 
 from __future__ import annotations
 

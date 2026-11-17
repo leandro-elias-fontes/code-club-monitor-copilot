@@ -32,7 +32,7 @@ head_left, head_right = st.columns([3, 1])
 with head_left:
     st.title("Code Club Monitor Copilot")
     st.caption(
-        "Diagnostico em 3s para monitores (UberHub Code Club / UFU) — RAG em YouKn0wWho, CSES, Codeforces, AtCoder e Maratona SBC"
+        "Diagnostico em 3s para monitores de algoritmos — RAG em YouKn0wWho, CSES, Codeforces, AtCoder e Maratona SBC"
     )
 with head_right:
     keys_count = len(get_api_keys())
