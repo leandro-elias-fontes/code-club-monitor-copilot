@@ -7,3 +7,6 @@ __pycache__/
 *.db
 .pytest_cache/
 .ruff_cache/
+data/training_submissions.jsonl
+data/monitor_feedback_cases.jsonl
+

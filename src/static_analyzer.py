@@ -81,7 +81,12 @@ def _cpp_loop_depth(cleaned_code: str) -> int:
     loop_depths: list[int] = []
     max_depth = 0
     pending_loop = False
+    is_outer_testcase_loop = False
     loop_re = re.compile(r"\b(for|while)\s*\(")
+    tc_loop_re = re.compile(
+        r"\bwhile\s*\(\s*(?:t\s*--|tc\s*--|cases\s*--|q\s*--|cin\s*>>|scanf\s*\(|getline\s*\()",
+        re.IGNORECASE,
+    )
 
     for line in cleaned_code.splitlines():
         stripped = line.strip()
@@ -89,28 +94,36 @@ def _cpp_loop_depth(cleaned_code: str) -> int:
             continue
         has_loop = bool(loop_re.search(stripped))
         if has_loop:
+            is_tc = bool(tc_loop_re.search(stripped)) and len(loop_depths) == 0
             if "{" in stripped:
-                loop_depths.append(brace_balance + 1)
-                max_depth = max(max_depth, len(loop_depths))
+                if not is_tc:
+                    loop_depths.append(brace_balance + 1)
+                    max_depth = max(max_depth, len(loop_depths))
             elif stripped.endswith(";"):
-                max_depth = max(max_depth, len(loop_depths) + 1)
+                if not is_tc:
+                    max_depth = max(max_depth, len(loop_depths) + 1)
             else:
                 pending_loop = True
-                max_depth = max(max_depth, len(loop_depths) + 1)
+                is_outer_testcase_loop = is_tc
+                if not is_tc:
+                    max_depth = max(max_depth, len(loop_depths) + 1)
 
         for ch in stripped:
             if ch == "{":
                 brace_balance += 1
                 if pending_loop:
-                    loop_depths.append(brace_balance)
-                    max_depth = max(max_depth, len(loop_depths))
+                    if not is_outer_testcase_loop:
+                        loop_depths.append(brace_balance)
+                        max_depth = max(max_depth, len(loop_depths))
                     pending_loop = False
+                    is_outer_testcase_loop = False
             elif ch == "}":
                 while loop_depths and loop_depths[-1] >= brace_balance:
                     loop_depths.pop()
                 brace_balance -= 1
             elif ch == ";" and pending_loop and not has_loop:
                 pending_loop = False
+                is_outer_testcase_loop = False
     return max_depth
 
 

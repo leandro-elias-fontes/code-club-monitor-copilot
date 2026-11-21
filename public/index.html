@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Monitor Copilot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-app: #0a0a0c;
+      --bg-panel: #111116;
+      --bg-elevated: #17171f;
+      --bg-input: #0d0d12;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.16);
+      --text-primary: #f4f4f6;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent-primary: #6366f1;
+      --accent-primary-hover: #818cf8;
+      --status-error: #f43f5e;
+      --status-error-bg: rgba(244, 63, 94, 0.08);
+      --status-error-border: rgba(244, 63, 94, 0.25);
+      --status-warn: #f59e0b;
+      --status-warn-bg: rgba(245, 158, 11, 0.08);
+      --status-warn-border: rgba(245, 158, 11, 0.25);
+      --status-ok: #10b981;
+      --status-ok-bg: rgba(16, 185, 129, 0.08);
+      --status-ok-border: rgba(16, 185, 129, 0.25);
+      --status-info: #38bdf8;
+      --status-info-bg: rgba(56, 189, 248, 0.08);
+      --status-info-border: rgba(56, 189, 248, 0.25);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Top Navigation Bar */
+    .navbar {
+      height: 58px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(10, 10, 12, 0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.35);
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+    }
+
+    .brand-badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+    }
+
+    .demos-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+    }
+
+    .demos-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+
+    .demo-chip {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .demo-chip:hover {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border-color: var(--border-hover);
+    }
+
+    .demo-chip.active {
+      background: rgba(99, 102, 241, 0.14);
+      border-color: rgba(99, 102, 241, 0.45);
+      color: #c7d2fe;
+    }
+
+    /* Main Split Layout */
+    .workspace {
+      max-width: 1360px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px 24px;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 540px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* Dark Custom Scrollbars */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0d0d12; }
+    ::-webkit-scrollbar-thumb { background: #272732; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f50; }
+    ::-webkit-scrollbar-corner { background: #0d0d12; }
+
+    @media (max-width: 1100px) {
+      .workspace { grid-template-columns: 1fr; }
+      .navbar { height: auto; padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+    }
+
+    /* Left Panel: Code & Problem Editor */
+    .editor-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .editor-toolbar {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.015);
+    }
+
+    .segmented-control {
+      display: inline-flex;
+      background: var(--bg-input);
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .seg-btn {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .seg-btn.active {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+      color: var(--text-primary);
+      border-color: var(--border-hover);
+    }
+
+    /* Question Search Drawer */
+    .drawer {
+      padding: 14px 16px;
+      background: #14141d;
+      border-bottom: 1px solid var(--border-subtle);
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .drawer.open { display: flex; }
+
+    .drawer-row {
+      display: grid;
+      grid-template-columns: 1fr 180px;
+      gap: 8px;
+    }
+
+    .input-ctrl, .select-ctrl {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      border-radius: 7px;
+      padding: 7px 10px;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .input-ctrl:focus, .select-ctrl:focus {
+      border-color: var(--accent-primary);
+    }
+
+    /* Problem Box */
+    .section-box {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .field-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .field-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .field-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .problem-textarea {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 12.5px;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+    }
+
+    .problem-textarea:focus { border-color: var(--accent-primary); }
+
+    /* Code Editor with Line Numbers */
+    .code-editor-wrap {
+      position: relative;
+      display: flex;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .code-editor-wrap:focus-within {
+      border-color: var(--accent-primary);
+    }
+
+    .line-numbers {
+      padding: 12px 10px;
+      text-align: right;
+      background: rgba(255, 255, 255, 0.02);
+      border-right: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 12.5px;
+      line-height: 1.6;
+      user-select: none;
+      width: 44px;
+      flex-shrink: 0;
+      white-space: pre;
+      overflow: hidden;
+    }
+
+    .code-textarea {
+      flex: 1;
+      width: 100%;
+      background: transparent;
+      border: none;
+      padding: 12px 14px;
+      color: #e2e8f0;
+      font-size: 12.5px;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+      min-height: 310px;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    .editor-footer {
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--accent-primary);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.05s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary:hover { background: var(--accent-primary-hover); }
+    .btn-primary:active { transform: scale(0.995); }
+
+    /* Right Panel: Clean Diagnostic Report */
+    .report-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Status Banner */
+    .verdict-banner {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .verdict-banner.is-error {
+      border-color: var(--status-error-border);
+      background: linear-gradient(90deg, rgba(244, 63, 94, 0.07) 0%, var(--bg-panel) 60%);
+    }
+
+    .verdict-banner.is-clean {
+      border-color: var(--status-ok-border);
+      background: linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, var(--bg-panel) 60%);
+    }
+
+    .verdict-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .verdict-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .verdict-icon.error {
+      background: var(--status-error-bg);
+      border: 1px solid var(--status-error-border);
+      color: var(--status-error);
+    }
+
+    .verdict-icon.clean {
+      background: var(--status-ok-bg);
+      border: 1px solid var(--status-ok-border);
+      color: var(--status-ok);
+    }
+
+    .verdict-overline {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 3px;
+    }
+
+    .verdict-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .telemetry-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .t-pill {
+      padding: 5px 10px;
+      border-radius: 7px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      font-size: 11.5px;
+      color: var(--text-secondary);
+    }
+
+    .t-pill strong { color: var(--text-primary); font-weight: 600; }
+
+    /* Diagnostic Step Cards Grid */
+    .report-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 18px 20px;
+      transition: border-color 0.2s;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .step-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .card-subtext {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 8px;
+    }
+
+    .card-maintext {
+      font-size: 14px;
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-weight: 500;
+    }
+
+    .line-highlight-box {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: rgba(244, 63, 94, 0.06);
+      border: 1px solid rgba(244, 63, 94, 0.22);
+      color: #fda4af;
+      font-size: 12.5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .counterexample-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: #fde68a;
+      font-size: 12.5px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+
+    /* Insight Highlight Card */
+    .insight-card {
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.06) 0%, var(--bg-panel) 100%);
+      border: 1px solid var(--status-ok-border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .copy-btn {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .copy-btn:hover { background: rgba(16, 185, 129, 0.22); }
+
+    /* Footer Accordion */
+    details.drawer-footer {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    details.drawer-footer summary {
+      padding: 13px 20px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    details.drawer-footer summary:hover { color: var(--text-primary); }
+
+    .rag-grid {
+      padding: 0 20px 18px 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+
+    .rag-item {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 12px;
+      text-decoration: none;
+      display: block;
+      transition: border-color 0.15s;
+    }
+
+    .rag-item:hover { border-color: var(--accent-primary); }
+
+    .rag-src {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #818cf8;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .rag-title {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .rag-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    /* Multi-Photo Upload Chips & Button */
+    .btn-photo {
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      color: #a5b4fc;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-photo:hover {
+      background: rgba(99, 102, 241, 0.22);
+      color: #e0e7ff;
+    }
+
+    .photo-strip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .photo-thumb {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .photo-thumb img {
+      width: 18px;
+      height: 18px;
+      object-fit: cover;
+      border-radius: 3px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <nav class="navbar">
+    <div class="brand">
+      <div class="brand-icon mono">&lt;/&gt;</div>
+      <span class="brand-title">Code Monitor Copilot</span>
+      <span id="statusPill" class="brand-badge mono">19.799 submissões • 3.500 questões</span>
+    </div>
+
+    <div class="demos-bar">
+      <span class="demos-label">Exemplos rápidos:</span>
+      <div id="demoButtons" style="display:flex; gap:6px;"></div>
+    </div>
+  </nav>
+
+  <!-- Main Workspace -->
+  <main class="workspace">
+
+    <!-- LEFT: Code & Question Input -->
+    <section class="editor-panel">
+      <div class="editor-toolbar">
+        <div class="segmented-control">
+          <button type="button" onclick="setLang('cpp')" id="langBtn_cpp" class="seg-btn active">C++</button>
+          <button type="button" onclick="setLang('c')" id="langBtn_c" class="seg-btn">C</button>
+          <button type="button" onclick="setLang('python')" id="langBtn_python" class="seg-btn">Python</button>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button type="button" onclick="toggleQuestionBank()" class="btn-secondary">
+            <span>📚 Banco Codeforces (3.500+)</span>
+          </button>
+          <button type="button" onclick="clearInputs()" class="btn-secondary" title="Limpar editor">
+            <span>Limpar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Collapsible Codeforces Problem Bank -->
+      <div id="questionBankDrawer" class="drawer">
+        <div class="drawer-row">
+          <input
+            id="realProbSearchInput"
+            type="text"
+            oninput="searchRealProblems()"
+            placeholder="Buscar questão real por nome, Contest ID (ex: 315) ou tópico (dijkstra, dp)..."
+            class="input-ctrl"
+          />
+          <select id="realProbTagFilter" onchange="searchRealProblems()" class="select-ctrl">
+            <option value="all">Todos os Tópicos</option>
+            <option value="graphs_bfs_dfs_dijkstra">Grafos / BFS / Dijkstra</option>
+            <option value="dynamic_programming">Programação Dinâmica</option>
+            <option value="sorting_binary_search">Busca Binária / Greedy</option>
+            <option value="prefix_sum_two_pointers">Two Pointers / Prefixos</option>
+            <option value="data_structures_hash_segtree">Estruturas / SegTree</option>
+            <option value="math_ad_hoc">Matemática / Ad-Hoc</option>
+          </select>
+        </div>
+        <select id="realProbResultsSelect" onchange="selectRealProblemFromDropdown()" class="select-ctrl">
+          <option value="">Selecione uma questão oficial para carregar o enunciado...</option>
+        </select>
+      </div>
+
+      <!-- Problem Statement -->
+      <div class="section-box">
+        <div class="field-header">
+          <span class="field-label">Enunciado ou Limites</span>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span id="probOcrStatus" class="field-hint mono"></span>
+            <input
+              id="problemPhotosInput"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
+              onchange="uploadMultiplePhotos('problem', this.files)"
+            />
+            <button type="button" onclick="document.getElementById('problemPhotosInput').click()" class="btn-photo" title="Anexar 1 ou mais fotos da questão (reconstrói expoentes 10^5, 10^9 automaticamente)">
+              <span>📷 Anexar Fotos da Questão</span>
+            </button>
+          </div>
+        </div>
+        <div id="problemPhotosStrip" class="photo-strip hidden"></div>
+        <textarea
+          id="problemInput"
+          rows="2"
+          class="problem-textarea"
+          placeholder="Cole o enunciado, anexe 1 ou mais fotos da prova/lista acima (ou pressione Ctrl+V com print)..."
+        ></textarea>
+      </div>
+
+      <!-- Code Editor with Line Gutter -->
+      <div class="section-box" style="border-bottom:none; padding-bottom: 4px;">
+        <div class="field-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="field-label">Código do Aluno</span>
+            <span id="lineCountHint" class="field-hint mono">1 linha</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span id="codeOcrStatus" class="field-hint mono"></span>
+            <input
+              id="codePhotosInput"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
+              onchange="uploadMultiplePhotos('code', this.files)"
+            />
+            <button type="button" onclick="document.getElementById('codePhotosInput').click()" class="btn-photo" title="Anexar 1 ou mais fotos do código do monitor/caderno (junta as partes em ordem)">
+              <span>📷 Anexar Fotos do Código</span>
+            </button>
+          </div>
+        </div>
+        <div id="codePhotosStrip" class="photo-strip hidden"></div>
+        <div class="code-editor-wrap">
+          <div id="lineNumbersGutter" class="line-numbers mono">1</div>
+          <textarea
+            id="codeInput"
+            spellcheck="false"
+            oninput="updateLineNumbers()"
+            onscroll="syncGutterScroll()"
+            class="code-textarea mono"
+            placeholder="Cole aqui o código em C, C++ ou Python..."
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="editor-footer">
+        <button id="diagnoseBtn" onclick="runDiagnosis(null)" class="btn-primary">
+          <span>Analisar Código do Aluno</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- RIGHT: Structured Pedagogical Output -->
+    <section class="report-panel">
+
+      <!-- Top Verdict Banner -->
+      <div id="verdictBanner" class="verdict-banner is-error">
+        <div class="verdict-left">
+          <div id="verdictIcon" class="verdict-icon error">!</div>
+          <div>
+            <div id="verdictOverline" class="verdict-overline">Diagnóstico da Submissão</div>
+            <h2 id="mainBugTitle" class="verdict-title">Carregando análise...</h2>
+          </div>
+        </div>
+        <div class="telemetry-pills mono">
+          <span class="t-pill">Código: <strong id="pillCodeBigO">—</strong></span>
+          <span class="t-pill">Esperado: <strong id="pillIdealBigO">—</strong></span>
+          <span class="t-pill" id="pillAlgo">—</span>
+          <span class="t-pill" id="pillLatency">0 ms</span>
+        </div>
+      </div>
+
+      <!-- CARD 1: O Diagnóstico / Onde está o Erro -->
+      <div class="report-card">
+        <div class="card-head">
+          <div class="step-badge" id="step1Badge" style="color: var(--status-error);">
+            <span class="step-dot" id="step1Dot" style="background: var(--status-error);"></span>
+            <span id="step1Title">1. Onde está o Erro</span>
+          </div>
+          <span id="suspectLineBadge" class="brand-badge mono hidden" style="color:#fda4af; border-color:rgba(244,63,94,0.3);">Linha —</span>
+        </div>
+        <p id="outStudentLogic" class="card-subtext">—</p>
+        <p id="outBugLocation" class="card-maintext">—</p>
+        <div id="suspectCodeSnippetBox" class="line-highlight-box mono hidden"></div>
+      </div>
+
+      <!-- CARD 2: Caso que quebra o código (Hidden automatically when code is clean OR compile error) -->
+      <div id="counterexampleCard" class="report-card">
+        <div class="card-head">
+          <div class="step-badge" style="color: var(--status-warn);">
+            <span class="step-dot" style="background: var(--status-warn);"></span>
+            <span>2. Caso de Teste que Quebra o Código (Contra-Exemplo)</span>
+          </div>
+          <span class="field-hint">Mostre este caso na bancada</span>
+        </div>
+        <div id="outCounterexample" class="counterexample-box mono">—</div>
+      </div>
+
+      <!-- CARD 3: Como Arrumar (Hidden automatically when code is already 100% clean) -->
+      <div id="howToFixCard" class="report-card">
+        <div class="card-head">
+          <div class="step-badge" style="color: var(--status-info);">
+            <span class="step-dot" style="background: var(--status-info);"></span>
+            <span>3. Como Corrigir (Guia Direto para o Instrutor)</span>
+          </div>
+        </div>
+        <p id="outHowToFix" class="card-maintext">—</p>
+      </div>
+
+      <!-- CARD 4: Insight Pedagógico para Passar ao Aluno -->
+      <div class="insight-card">
+        <div class="card-head">
+          <div class="step-badge" style="color: var(--status-ok);">
+            <span class="step-dot" style="background: var(--status-ok);"></span>
+            <span id="step4Title">4. Insight Socrático para Passar ao Aluno</span>
+          </div>
+          <button type="button" id="copyInsightBtn" onclick="copyInsight()" class="copy-btn">
+            Copiar Pergunta
+          </button>
+        </div>
+        <p id="outMonitorTip" class="card-maintext" style="color: #d1fae5;">—</p>
+      </div>
+
+      <!-- Optional Footer Accordion: RAG References -->
+      <details class="drawer-footer">
+        <summary>
+          <span>Referências de Estudo Recomendadas (YouKn0wWho, CSES, Codeforces, AtCoder, Maratona SBC)</span>
+          <span>▾</span>
+        </summary>
+        <div id="ragCardsContainer" class="rag-grid"></div>
+      </details>
+
+    </section>
+  </main>
+
+  <script>
+    let CURRENT_LANG = 'cpp';
+    let DEMOS = [];
+    let REAL_PROBLEMS_CACHE = [];
+    let HAS_UPLOADED_PROB_PHOTO = false;
+    let HAS_UPLOADED_CODE_PHOTO = false;
+
+    function updateLineNumbers() {
+      const textarea = document.getElementById('codeInput');
+      const gutter = document.getElementById('lineNumbersGutter');
+      const count = Math.max(textarea.value.split('\n').length, 1);
+      let nums = '';
+      for (let i = 1; i <= count; i++) {
+        nums += i + (i < count ? '\n' : '');
+      }
+      gutter.textContent = nums;
+      document.getElementById('lineCountHint').textContent = count + (count === 1 ? ' linha' : ' linhas');
+    }
+
+    function syncGutterScroll() {
+      const textarea = document.getElementById('codeInput');
+      const gutter = document.getElementById('lineNumbersGutter');
+      gutter.scrollTop = textarea.scrollTop;
+    }
+
+    function setLang(lang) {
+      CURRENT_LANG = lang;
+      ['cpp', 'c', 'python'].forEach(l => {
+        const btn = document.getElementById('langBtn_' + l);
+        btn.classList.toggle('active', l === lang);
+      });
+    }
+
+    function toggleQuestionBank() {
+      document.getElementById('questionBankDrawer').classList.toggle('open');
+    }
+
+    function clearInputs() {
+      document.getElementById('problemInput').value = '';
+      document.getElementById('codeInput').value = '';
+      document.getElementById('problemPhotosStrip').innerHTML = '';
+      document.getElementById('problemPhotosStrip').classList.add('hidden');
+      document.getElementById('codePhotosStrip').innerHTML = '';
+      document.getElementById('codePhotosStrip').classList.add('hidden');
+      document.getElementById('probOcrStatus').textContent = '';
+      document.getElementById('codeOcrStatus').textContent = '';
+      HAS_UPLOADED_PROB_PHOTO = false;
+      HAS_UPLOADED_CODE_PHOTO = false;
+      updateLineNumbers();
+    }
+
+    async function uploadMultiplePhotos(mode, fileList) {
+      if (!fileList || fileList.length === 0) return;
+      const isCode = mode === 'code';
+      const statusEl = document.getElementById(isCode ? 'codeOcrStatus' : 'probOcrStatus');
+      const stripEl = document.getElementById(isCode ? 'codePhotosStrip' : 'problemPhotosStrip');
+      const targetInput = document.getElementById(isCode ? 'codeInput' : 'problemInput');
+      const inputEl = document.getElementById(isCode ? 'codePhotosInput' : 'problemPhotosInput');
+
+      // On first photo upload, wipe any default demo/typed text; on subsequent uploads, stitch & deduplicate overlap!
+      const alreadyHasPhoto = isCode ? HAS_UPLOADED_CODE_PHOTO : HAS_UPLOADED_PROB_PHOTO;
+      let existingPhotoText = '';
+      if (!alreadyHasPhoto) {
+        targetInput.value = '';
+        if (isCode) updateLineNumbers();
+        stripEl.innerHTML = '';
+        if (isCode) HAS_UPLOADED_CODE_PHOTO = true;
+        else HAS_UPLOADED_PROB_PHOTO = true;
+      } else {
+        existingPhotoText = targetInput.value.trim();
+      }
+      stripEl.classList.remove('hidden');
+
+      Array.from(fileList).forEach((file) => {
+        const chip = document.createElement('div');
+        chip.className = 'photo-thumb';
+        const url = URL.createObjectURL(file);
+        chip.innerHTML = `<img src="${url}" alt="foto"/><span>Foto ${stripEl.children.length + 1}: ${file.name.slice(0, 16)}</span>`;
+        stripEl.appendChild(chip);
+      });
+
+      statusEl.textContent = `Lendo e removendo interseções...`;
+      const formData = new FormData();
+      formData.append('mode', mode);
+      formData.append('existing_text', existingPhotoText);
+      Array.from(fileList).forEach(f => formData.append('files', f));
+
+      try {
+        const res = await fetch('/api/ocr', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.extracted_text) {
+          targetInput.value = data.extracted_text;
+          if (isCode) {
+            updateLineNumbers();
+          }
+          runDiagnosis(null);
+          const confPct = ((data.confidence || 0.95) * 100).toFixed(0);
+          statusEl.textContent = `✓ ${stripEl.children.length} foto(s) sem repetição (${confPct}% conf)`;
+        } else {
+          statusEl.textContent = 'Texto já incluído (interseção 100% removida).';
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Erro ao processar imagem.';
+      } finally {
+        inputEl.value = '';
+      }
+    }
+
+    function copyInsight() {
+      const text = document.getElementById('outMonitorTip').textContent;
+      if (!text || text === '—') return;
+      navigator.clipboard.writeText(text);
+      const btn = document.getElementById('copyInsightBtn');
+      btn.textContent = 'Copiado ✓';
+      setTimeout(() => { btn.textContent = 'Copiar Pergunta'; }, 1800);
+    }
+
+    async function searchRealProblems() {
+      const q = document.getElementById('realProbSearchInput').value;
+      const tag = document.getElementById('realProbTagFilter').value;
+      try {
+        const res = await fetch(`/api/problems/search?q=${encodeURIComponent(q)}&tag=${encodeURIComponent(tag)}&limit=25`);
+        const data = await res.json();
+        REAL_PROBLEMS_CACHE = data.problems || [];
+        const sel = document.getElementById('realProbResultsSelect');
+        sel.innerHTML = `<option value="">Selecionar entre ${REAL_PROBLEMS_CACHE.length} questões oficiais...</option>`;
+        REAL_PROBLEMS_CACHE.forEach((p, idx) => {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.textContent = `[CF-${p.contest_id}] ${p.name} (${p.algo_label}) — N <= ${(p.max_n || 1000).toLocaleString()}`;
+          sel.appendChild(opt);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function selectRealProblemFromDropdown() {
+      const idx = document.getElementById('realProbResultsSelect').value;
+      if (idx === '' || !REAL_PROBLEMS_CACHE[idx]) return;
+      const p = REAL_PROBLEMS_CACHE[idx];
+      document.getElementById('problemInput').value = p.statement;
+      document.getElementById('questionBankDrawer').classList.remove('open');
+    }
+
+    async function initApp() {
+      try {
+        const [healthRes, demosRes] = await Promise.all([
+          fetch('/api/health'),
+          fetch('/api/demos')
+        ]);
+        const health = await healthRes.json();
+        DEMOS = await demosRes.json();
+
+        if (health.model_metadata && health.model_metadata.dataset_size) {
+          document.getElementById('statusPill').textContent =
+            `${health.model_metadata.dataset_size.toLocaleString()} submissões • ${(health.real_problems_count || 3500).toLocaleString()} questões`;
+        }
+
+        const container = document.getElementById('demoButtons');
+        container.innerHTML = '';
+        DEMOS.forEach((d, idx) => {
+          const btn = document.createElement('button');
+          btn.className = "demo-chip" + (idx === 0 ? " active" : "");
+          btn.textContent = d.title.split('(')[0].trim();
+          btn.onclick = () => {
+            document.querySelectorAll('.demo-chip').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            setLang(d.language);
+            document.getElementById('problemInput').value = d.problem_statement;
+            document.getElementById('codeInput').value = d.code;
+            updateLineNumbers();
+            runDiagnosis(d.id);
+          };
+          container.appendChild(btn);
+        });
+
+        if (DEMOS.length > 0) {
+          setLang(DEMOS[0].language);
+          document.getElementById('problemInput').value = DEMOS[0].problem_statement;
+          document.getElementById('codeInput').value = DEMOS[0].code;
+          updateLineNumbers();
+          runDiagnosis(DEMOS[0].id);
+        }
+        searchRealProblems();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function runDiagnosis(demoId) {
+      const code = document.getElementById('codeInput').value;
+      if (!code.trim()) return;
+
+      const btn = document.getElementById('diagnoseBtn');
+      btn.disabled = true;
+      btn.textContent = 'Analisando submissão...';
+
+      try {
+        const res = await fetch('/api/diagnose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            language: CURRENT_LANG,
+            problem_statement: document.getElementById('problemInput').value,
+            code: code,
+            demo_id: demoId,
+            source_filter: 'all'
+          })
+        });
+        const data = await res.json();
+        renderDiagnosis(data, code);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Analisar Código do Aluno';
+      }
+    }
+
+    function renderDiagnosis(data, rawCode) {
+      const isClean = data.predicted_bug_class === 'clean_or_minor_logic' && !data.is_compile_error;
+      const banner = document.getElementById('verdictBanner');
+      const icon = document.getElementById('verdictIcon');
+      const step1Badge = document.getElementById('step1Badge');
+      const step1Dot = document.getElementById('step1Dot');
+      const step1Title = document.getElementById('step1Title');
+      const step4Title = document.getElementById('step4Title');
+
+      if (isClean) {
+        banner.className = "verdict-banner is-clean";
+        icon.className = "verdict-icon clean";
+        icon.textContent = "✓";
+        document.getElementById('verdictOverline').textContent = "Submissão Validada";
+        step1Badge.style.color = "var(--status-ok)";
+        step1Dot.style.background = "var(--status-ok)";
+        step1Title.textContent = "1. Análise de Compatibilidade (Código Limpo)";
+        step4Title.textContent = "2. Feedback para o Aluno";
+      } else {
+        banner.className = "verdict-banner is-error";
+        icon.className = "verdict-icon error";
+        icon.textContent = "!";
+        document.getElementById('verdictOverline').textContent = data.is_compile_error ? "Erro de Compilação / Sintaxe" : "Bug Detectado na Submissão";
+        step1Badge.style.color = "var(--status-error)";
+        step1Dot.style.background = "var(--status-error)";
+        step1Title.textContent = "1. Onde está o Erro";
+        step4Title.textContent = data.is_compile_error ? "3. Insight Socrático para Passar ao Aluno" : "4. Insight Socrático para Passar ao Aluno";
+      }
+
+      document.getElementById('mainBugTitle').textContent = data.predicted_bug_label || data.predicted_bug_class;
+
+      const pc = data.problem_constraints || {};
+      document.getElementById('pillCodeBigO').textContent = data.static_report.estimated_big_o;
+      document.getElementById('pillIdealBigO').textContent = pc.expected_max_complexity || 'O(N)';
+      document.getElementById('pillAlgo').textContent = pc.predicted_algo_label || 'Algoritmos';
+      document.getElementById('pillLatency').textContent = `${data.latency_ms} ms`;
+
+      // Card 1: Logic & Bug Location
+      document.getElementById('outStudentLogic').textContent = data.student_logic;
+      document.getElementById('outBugLocation').textContent = data.bug_location;
+
+      const lineBadge = document.getElementById('suspectLineBadge');
+      const snippetBox = document.getElementById('suspectCodeSnippetBox');
+      if (data.suspect_line && !isClean) {
+        lineBadge.textContent = `Linha ${data.suspect_line}`;
+        lineBadge.classList.remove('hidden');
+        const lines = rawCode.split('\n');
+        const idx = data.suspect_line - 1;
+        if (lines[idx] !== undefined) {
+          snippetBox.innerHTML = `<span>Linha ${data.suspect_line}: <code>${lines[idx].trim().replace(/</g, '&lt;')}</code></span>`;
+          snippetBox.classList.remove('hidden');
+        } else {
+          snippetBox.classList.add('hidden');
+        }
+      } else {
+        lineBadge.classList.add('hidden');
+        snippetBox.classList.add('hidden');
+      }
+
+      // Card 2: Counterexample (Hide if compile error OR if code is already 100% clean!)
+      const ceCard = document.getElementById('counterexampleCard');
+      if (data.is_compile_error || isClean) {
+        ceCard.classList.add('hidden');
+      } else {
+        ceCard.classList.remove('hidden');
+        document.getElementById('outCounterexample').textContent = data.counterexample;
+      }
+
+      // Card 3: How to Fix (Hide if code is already 100% clean!)
+      const fixCard = document.getElementById('howToFixCard');
+      if (isClean) {
+        fixCard.classList.add('hidden');
+      } else {
+        fixCard.classList.remove('hidden');
+        document.getElementById('outHowToFix').textContent =
+          data.how_to_fix || "Ajuste a lógica na linha indicada respeitando os limites do enunciado.";
+      }
+
+      // Card 4: Socratic Insight
+      document.getElementById('outMonitorTip').textContent = data.monitor_tip;
+
+      // Footer RAG References
+      const ragContainer = document.getElementById('ragCardsContainer');
+      ragContainer.innerHTML = '';
+      (data.rag_references || []).forEach(r => {
+        const card = document.createElement('a');
+        card.href = r.url;
+        card.target = "_blank";
+        card.rel = "noopener";
+        card.className = "rag-item";
+        card.innerHTML = `
+          <div class="rag-src">${r.source} ↗</div>
+          <div class="rag-title">${r.title}</div>
+          <div class="rag-desc">${r.common_mistakes}</div>
+        `;
+        ragContainer.appendChild(card);
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  </script>
+</body>
+</html>

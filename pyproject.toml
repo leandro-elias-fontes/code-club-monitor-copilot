@@ -1,6 +1,6 @@
 [project]
-name = "code-club-monitor-copilot"
-version = "1.0.0"
+name = "code-monitor-copilot"
+version = "2.0.0"
 description = "Diagnostico rapido via RAG para monitores de programacao competitiva (C/C++/Python)"
 requires-python = ">=3.10"
 

@@ -21,7 +21,9 @@ DEMO_SCENARIOS: list[dict[str, Any]] = [
             "student_logic": "O aluno leu N e somou todos os elementos na variavel 'soma' em um laco simples O(N).",
             "bug_location": "Linha 7 e 11: 'soma' foi declarada como 'int' (limite ~2.14e9). Com N = 10^5 e x = 10^9, a soma chega a 10^14 e causa Integer Overflow.",
             "counterexample": "Entrada: N = 3, valores = [1000000000, 1000000000, 1000000000] | Saida do Aluno: -1294967296 | Saida Esperada: 3000000000",
+            "how_to_fix": "Altere o tipo da variavel acumuladora de 'int soma = 0;' para 'long long soma = 0LL;' (e use '%lld' se estiver usando printf em C).",
             "monitor_tip": "Qual e o maior numero que cabe em um int de 32 bits e quanto da a soma de tres valores iguais a 10^9?",
+            "suspect_line": 7,
             "rag_references": [
                 {
                     "id": "cf_int_overflow",
@@ -62,7 +64,9 @@ DEMO_SCENARIOS: list[dict[str, Any]] = [
             "student_logic": "O aluno alocou um vector de tamanho N, leu os dados e buscou o maior valor percorrendo o vetor.",
             "bug_location": "Linhas 9 e 11: os lacos usam 'i <= n' comecando em 0. Como o vector e 0-indexed (0..n-1), acessar v[n] invade memoria fora do vetor.",
             "counterexample": "Entrada: N = 3, valores = [4, 7, 2] | Saida do Aluno: tenta ler v[3] (lixo / Segfault) | Saida Esperada: 7",
+            "how_to_fix": "Troque a condicao de parada dos lacos 'for' de 'i <= n' para 'i < n' nas linhas 9 e 11.",
             "monitor_tip": "Se um vetor tem tamanho 3 e comeca no indice 0, quais sao os indices validos dele?",
+            "suspect_line": 9,
             "rag_references": [
                 {
                     "id": "cf_edge_cases_n1",
@@ -95,7 +99,9 @@ DEMO_SCENARIOS: list[dict[str, Any]] = [
             "student_logic": "O aluno testou todos os pares (i, j) com dois lacos aninhados para verificar se algum par soma K.",
             "bug_location": "Linhas 10-14: dois lacos aninhados resultam em O(N^2). Para N = 10^5, sao ~5*10^9 operacoes, estourando o limite de 1s (TLE).",
             "counterexample": "Entrada: N = 100000, K = -1, array = [1..100000] | Saida do Aluno: TLE (>1s) | Saida Esperada: NAO (em O(N log N) ou O(N))",
+            "how_to_fix": "Remova o segundo laco 'for': ordene o vetor com sort(a.begin(), a.end()) e use Dois Ponteiros (L=0, R=n-1) ou guarde os elementos vistos em um std::set / std::map procurando por (k - a[i]) em O(N log N).",
             "monitor_tip": "Se voce fixar a[i], qual valor exato precisa procurar no resto do vetor sem usar um segundo for?",
+            "suspect_line": 10,
             "rag_references": [
                 {
                     "id": "ykw_complexity_limits",
@@ -142,7 +148,9 @@ DEMO_SCENARIOS: list[dict[str, Any]] = [
             "student_logic": "O aluno implementou busca binaria salvando a melhor resposta em 'ans' sempre que arr[mid] <= x.",
             "bug_location": "Linhas 5 e 8: mid = (l + r) // 2 arredonda para baixo. Quando r == l + 1 e arr[mid] <= x, mid vale l e 'l = mid' nao altera o intervalo (loop infinito).",
             "counterexample": "Entrada: arr = [1, 3], x = 5 | Saida do Aluno: Loop infinito (l=0, r=1, mid=0 -> l=0) | Saida Esperada: 1",
+            "how_to_fix": "Ao atualizar 'ans = mid', avance o ponteiro esquerdo com 'l = mid + 1' (usando 'while l <= r:'), ou arredonde o meio para cima com 'mid = (l + r + 1) // 2'.",
             "monitor_tip": "Simule no papel com l = 0 e r = 1: quanto vale (0 + 1) // 2? O intervalo [l, r] diminuiu?",
+            "suspect_line": 8,
             "rag_references": [
                 {
                     "id": "ykw_binary_search_answer",
@@ -173,7 +181,9 @@ DEMO_SCENARIOS: list[dict[str, Any]] = [
             "student_logic": "O aluno declarou lista de adjacencia global adj[] e leu T casos de teste imprimindo o tamanho de adj[i].",
             "bug_location": "Linhas 4, 7 e 10: 'adj' global nao e limpo entre casos de teste (contamina casos seguintes -> WA) e 'endl' dentro do laco forca flush dando TLE.",
             "counterexample": "Entrada: T = 2, caso 1 com aresta (1,2), caso 2 sem arestas (n=2, m=0) | Saida do Aluno no caso 2: 1 | Saida Esperada: 0",
+            "how_to_fix": "No inicio de cada caso dentro do 'while (t--)', limpe as listas usadas com 'for (int i = 1; i <= n; i++) adj[i].clear();' e troque 'endl' por '\\n' na linha 10.",
             "monitor_tip": "O que acontece com o conteudo de adj[1] quando o segundo caso de teste comeca?",
+            "suspect_line": 7,
             "rag_references": [
                 {
                     "id": "sbc_global_reset",
