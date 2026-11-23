@@ -334,7 +334,7 @@ def _run_local_gcc_syntax_check(code: str, language: Language) -> tuple[bool, Mi
             ln = int(m.group(1))
             err_msg = m.group(2).strip()
             # Check if it's an undeclared identifier error so we can suggest closest typo (e.g. 'soma' vs 'som')
-            m_undecl = re.search(r"'([a-zA-Z_]\w*)' was not declared in this scope", err_msg)
+            m_undecl = re.search(r"['‘`\"]([a-zA-Z_]\w*)['’`\"]\s+was not declared in this scope", err_msg)
             if m_undecl:
                 ident = m_undecl.group(1)
                 cleaned = _strip_cpp_comments_and_strings(code)
@@ -612,33 +612,14 @@ def check_micro_errors(code: str, language: Language) -> MicroErrorResult | None
     if language == "python":
         return _check_python_symbol_and_syntax_errors(code)
 
-    # First check if local g++/gcc is available and can validate the C/C++ code authoritatively
-    compiler_ran, gcc_res = _run_local_gcc_syntax_check(code, language)
-    if compiler_ran:
-        if gcc_res is not None:
-            return gcc_res
-        # Even if it compiles, still check for accidental `if (a = b)` assignment bug
-        cleaned = _strip_cpp_comments_and_strings(code)
-        for idx, line in enumerate(cleaned.splitlines(), start=1):
-            m_if = re.search(r"\bif\s*\(\s*([a-zA-Z_]\w*(?:\[[^\]]+\])?)\s*=\s*([^=][^)]*)\)", line)
-            if m_if:
-                lhs_var = m_if.group(1)
-                return MicroErrorResult(
-                    has_error=True,
-                    line=idx,
-                    title=f"Bug Lógico Micro: Atribuição '=' dentro do 'if' em vez de Comparação '==' (Linha {idx})",
-                    bug_location=(
-                        f"Linha {idx}: A condição do 'if' usa um único sinal de igual ('{lhs_var} = ...'), "
-                        "que sobrescreve o valor da variável em vez de comparar igualdade ('==')."
-                    ),
-                    how_to_fix=f"Na linha {idx}, troque '=' por '==' dentro da condição do 'if'.",
-                    monitor_tip=(
-                        f"Pergunte ao aluno: 'Na linha {idx}, dentro do if, você quer guardar um valor novo em {lhs_var} "
-                        "com = ou comparar se os dois valores são iguais com ==?'"
-                    ),
-                    is_compile_error=False,
-                )
-        return None
+    # First run our rich pure-Python symbol table & micro-error analyzer (which works identically on Vercel, Linux CI, and Windows)
+    sym_res = _check_cpp_symbol_and_syntax_errors(code, language)
+    if sym_res is not None:
+        return sym_res
 
-    # Serverless / Vercel pure-Python fallback (0% false-positive audited)
-    return _check_cpp_symbol_and_syntax_errors(code, language)
+    # Second, if local g++/gcc is available, run -fsyntax-only as an additional compiler check
+    compiler_ran, gcc_res = _run_local_gcc_syntax_check(code, language)
+    if compiler_ran and gcc_res is not None:
+        return gcc_res
+
+    return None
