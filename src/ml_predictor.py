@@ -127,10 +127,14 @@ class ZeroAPIMLPredictor:
 
         if fmap.get("missing_global_cleanup", 0.0) > 0:
             ast_boost[idx_map["global_state_dirty"]] += 12.0
-        if fmap.get("has_bs_mid_assign_bug", 0.0) > 0 or (
-            fmap.get("has_recursion", 0.0) > 0 and fmap.get("has_memoization", 0.0) == 0
-        ):
+        if fmap.get("has_bs_mid_assign_bug", 0.0) > 0:
             ast_boost[idx_map["infinite_loop_or_recursion"]] += 12.0
+        elif (
+            fmap.get("has_recursion", 0.0) > 0
+            and fmap.get("has_memoization", 0.0) == 0
+            and analysis.constraints.predicted_algo_family == "dynamic_programming"
+        ):
+            ast_boost[idx_map["infinite_loop_or_recursion"]] += 10.0
         if fmap.get("has_le_in_zero_loop", 0.0) > 0:
             ast_boost[idx_map["off_by_one_bounds"]] += 12.0
         if fmap.get("ops_exceed_time_limit", 0.0) > 0:
@@ -405,20 +409,21 @@ def build_symbolic_diagnosis(
 
     else:
         bug_location = (
-            f"Nenhum bug estrutural ou risco de overflow/TLE detectado! A complexidade {sr.estimated_big_o} "
-            f"e o uso de inteiros de 64 bits (long long) atendem perfeitamente ao limite N <= {c.max_n:,} ({c.expected_max_complexity})."
+            f"Nenhum erro de sintaxe, estouro de inteiro ou gargalo de complexidade ({sr.estimated_big_o} vs limite {c.expected_max_complexity}) foi encontrado."
         )
         counterexample = (
-            f"Teste de Confirmacao Final:\n"
-            f"Entrada Limite: N = {c.max_n:,}, elementos = {c.max_val:,}\n"
-            f"Resultado: Executa dentro de {c.time_limit_sec}s sem estouro de memoria ou tipo."
+            f"Caso sugerido para conferir na bancada:\n"
+            f"1) Caso minimo (N = 1 ou entrada vazia/zero)\n"
+            f"2) Caso com valores repetidos ou negativos\n"
+            f"3) Limite maximo (N = {c.max_n:,})"
         )
         how_to_fix = (
-            "Nenhuma correcao estrutural necessaria. O codigo esta pronto para submissao (Accepted)."
+            "Se o aluno ainda esta recebendo Wrong Answer (WA), o problema provavelmente esta na logica especifica da questao "
+            "(ex: formula, condicao de parada, ordenacao/empate ou formato de saida)."
         )
         monitor_tip = (
-            "Parabenize o aluno pela atencao aos tipos de 64 bits (long long) e complexidade linear, "
-            "e peca apenas para ele validar o caso minimo (N = 1) antes de submeter no juiz!"
+            "Pergunte ao aluno: 'Seu codigo compila e esta rapido, entao vamos testar no papel com um exemplo pequeno: "
+            "o que seu codigo faz passo a passo no caso minimo (N = 1) e nos casos de empate?'"
         )
 
     return {
@@ -427,7 +432,7 @@ def build_symbolic_diagnosis(
         "counterexample": counterexample,
         "how_to_fix": how_to_fix,
         "monitor_tip": monitor_tip,
-        "bug_label": "Código Pronto para Submissão (Sem Bugs Detectados)" if bug_class == "clean_or_minor_logic" else BUG_CLASS_LABELS_PT.get(bug_class, bug_class),
+        "bug_label": "Sem Erros Estruturais Detectados" if bug_class == "clean_or_minor_logic" else BUG_CLASS_LABELS_PT.get(bug_class, bug_class),
         "suspect_line": line_num,
         "is_compile_error": False,
     }

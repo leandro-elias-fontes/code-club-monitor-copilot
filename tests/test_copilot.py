@@ -312,3 +312,192 @@ def test_vision_ocr_exponent_and_code_reconstruction() -> None:
     assert merged.count("Decifrando a Carta Criptografada") == 1
     assert merged.count("Os caracteres serao decifrados") == 1
     assert "Apos cada caso de teste" in merged
+
+
+def test_precision_fixes_no_false_positives() -> None:
+    # 1. endl AFTER a loop should NOT be flagged as tle_slow_io_endl
+    code_endl_after = (
+        "#include <iostream>\nusing namespace std;\nint main() {\n"
+        "    int n; cin >> n;\n    long long s = 0;\n"
+        "    for (int i = 0; i < n; i++) { long long x; cin >> x; s += x; }\n"
+        "    cout << s << endl;\n    return 0;\n}"
+    )
+    res_endl = run_copilot("cpp", code_endl_after, "Dado N <= 10^5, imprima a soma.")
+    assert res_endl.predicted_bug_class == "clean_or_minor_logic"
+    assert "Accepted" not in res_endl.how_to_fix
+
+    # 2. Recursive DFS without dp[]/memo[] should NOT be flagged as infinite recursion
+    code_dfs = (
+        "#include <bits/stdc++.h>\nusing namespace std;\n"
+        "vector<int> adj[100005];\nbool vis[100005];\n"
+        "void dfs(int u) {\n    vis[u] = true;\n"
+        "    for (int v : adj[u]) if (!vis[v]) dfs(v);\n}\n"
+        "int main() {\n    int n, m; cin >> n >> m;\n"
+        "    for (int i = 0; i < m; i++) { int u, v; cin >> u >> v; adj[u].push_back(v); }\n"
+        "    dfs(1);\n    return 0;\n}"
+    )
+    res_dfs = run_copilot("cpp", code_dfs, "Dado um grafo com N <= 10^5 vertices e M arestas, percorra o grafo.")
+    assert res_dfs.predicted_bug_class == "clean_or_minor_logic"
+
+    # 3. vector sized (n + 1) with loop i <= n should NOT be flagged as off_by_one_bounds
+    code_dp_n1 = (
+        "#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n"
+        "    int n; cin >> n;\n    vector<long long> dp(n + 1, 0);\n"
+        "    for (int i = 0; i <= n; i++) dp[i] = i;\n"
+        "    cout << dp[n] << '\\n';\n    return 0;\n}"
+    )
+    res_dp = run_copilot("cpp", code_dp_n1, "Dado N <= 1000, preencha o vetor.")
+    assert res_dp.predicted_bug_class == "clean_or_minor_logic"
+
+
+def test_sandbox_runner_and_platform_detectors() -> None:
+    # 1. Python sandbox detects Presentation Error (trailing space / case) and Wrong Answer
+    res_pe = run_copilot(
+        language="python",
+        problem_statement="Exemplo de Entrada:\n5\nExemplo de Saída:\nSIM",
+        code="n = int(input())\nprint('sim')",
+    )
+    assert res_pe.execution_result is not None
+    assert res_pe.execution_result.ran is True
+    assert res_pe.execution_result.status == "pe"
+    assert res_pe.predicted_bug_class == "presentation_or_precision"
+
+    res_wa = run_copilot(
+        language="python",
+        problem_statement="",
+        code="a, b = map(int, input().split())\nprint(a - b)",
+        sample_input="3 5",
+        expected_output="8",
+    )
+    assert res_wa.execution_result is not None
+    assert res_wa.execution_result.status == "wa"
+    assert res_wa.predicted_bug_class == "wrong_answer_sample"
+
+    # 2. Beecrowd missing setprecision
+    res_prec = run_copilot(
+        language="cpp",
+        problem_statement="Calcule a media com 2 casas decimais.",
+        code="#include <iostream>\nusing namespace std;\nint main(){ double a, b; cin >> a >> b; cout << (a+b)/2.0 << '\\n'; }",
+    )
+    assert "setprecision(2)" in res_prec.how_to_fix
+
+    # 3. C++ integer division truncation
+    res_div = run_copilot(
+        language="cpp",
+        problem_statement="Calcule a media aritmetica dos dois inteiros.",
+        code="#include <iostream>\nusing namespace std;\nint main(){ int a, b; cin >> a >> b; cout << (a + b) / 2 << '\\n'; }",
+    )
+    assert "Divisão Inteira" in res_div.predicted_bug_label
+
+    # 4. C++ cin >> followed by getline without cin.ignore()
+    res_getline = run_copilot(
+        language="cpp",
+        problem_statement="Leia N e depois uma frase.",
+        code="#include <iostream>\n#include <string>\nusing namespace std;\nint main(){ int n; string s; cin >> n; getline(cin, s); cout << s << '\\n'; }",
+    )
+    assert "cin.ignore" in res_getline.how_to_fix
+
+    # 5. Python shallow 2D matrix copy [[0]*m]*n
+    res_shallow = run_copilot(
+        language="python",
+        problem_statement="Leia uma matriz N x M.",
+        code="n, m = 3, 4\nmat = [[0] * m] * n\nmat[0][0] = 1\nprint(mat)",
+    )
+    assert "Cópia Rasa" in res_shallow.predicted_bug_label
+
+    # 6. FastAPI /api/diagnose accepts verdict and sample_input/expected_output
+    client = TestClient(app)
+    r = client.post(
+        "/api/diagnose",
+        json={
+            "language": "python",
+            "code": "x = int(input())\nprint(x * 2)",
+            "verdict": "WA",
+            "sample_input": "5",
+            "expected_output": "15",
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["execution_result"]["status"] == "wa"
+    assert body["predicted_bug_class"] == "wrong_answer_sample"
+
+
+def test_pro_endpoints_multi_test_chat_and_custom_problems() -> None:
+    client = TestClient(app)
+
+    # 1. Standalone multi-testcase runner (/api/run-tests)
+    r_run = client.post(
+        "/api/run-tests",
+        json={
+            "language": "python",
+            "code": "a, b = map(int, input().split())\nprint(a + b)",
+            "test_cases": [
+                {"name": "Caso 1", "sample_input": "2 3", "expected_output": "5"},
+                {"name": "Caso 2", "sample_input": "10 20", "expected_output": "30"},
+            ],
+        },
+    )
+    assert r_run.status_code == 200
+    run_body = r_run.json()
+    assert run_body["ran"] is True
+    assert run_body["status"] == "ac_sample"
+    assert len(run_body["cases"]) == 2
+
+    # 2. Socratic follow-up chat (/api/chat)
+    r_chat = client.post(
+        "/api/chat",
+        json={
+            "question": "Dê uma dica mais simples para iniciante",
+            "language": "cpp",
+            "code": "int main(){ return 0; }",
+            "previous_diagnosis": "Overflow de inteiro",
+        },
+    )
+    assert r_chat.status_code == 200
+    assert len(r_chat.json()["reply"]) > 20
+
+    # 3. Custom classroom problem bank (/api/problems/custom)
+    r_save = client.post(
+        "/api/problems/custom",
+        json={
+            "platform": "NEPS",
+            "title": "Soma Simples Teste",
+            "statement": "Leia dois inteiros A e B e imprima A + B.",
+            "sample_input": "3 4",
+            "expected_output": "7",
+        },
+    )
+    assert r_save.status_code == 200
+    assert r_save.json()["saved"] is True
+
+    r_list = client.get("/api/problems/custom")
+    assert r_list.status_code == 200
+    assert r_list.json()["count"] >= 1
+
+    # 4. Problem URL parser (Beecrowd HTML & AtCoder HTML)
+    from src.problem_fetcher import _parse_atcoder_html, _parse_beecrowd_html
+
+    bee_html = (
+        "<h1>Extremamente Básico</h1><p>Leia 2 valores inteiros.</p>"
+        "<tbody><tr><td>10<br/>9</td><td>X = 19</td></tr></tbody>"
+    )
+    bee = _parse_beecrowd_html(bee_html, "https://judge.beecrowd.com/pt/problems/view/1001", "1001")
+    assert bee.ok is True
+    assert bee.platform == "Beecrowd"
+    assert len(bee.test_cases) == 1
+    assert "X = 19" in bee.test_cases[0].expected_output
+
+    atc_html = (
+        "<title>A - Test - AtCoder</title><span class='lang-en'><p>Print A+B</p>"
+        "<h3>Sample Input 1</h3><pre>1 2</pre><h3>Sample Output 1</h3><pre>3</pre></span></span>"
+    )
+    atc = _parse_atcoder_html(atc_html, "https://atcoder.jp/contests/abc001/tasks/abc001_a")
+    assert atc.ok is True
+    assert len(atc.test_cases) == 1
+    assert atc.test_cases[0].sample_input == "1 2"
+    assert atc.test_cases[0].expected_output == "3"
+
+
+
+

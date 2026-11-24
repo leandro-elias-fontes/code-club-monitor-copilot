@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -14,9 +15,13 @@ from pydantic import BaseModel, Field
 from src.agent import DiagnosisResponse, run_copilot, save_monitor_feedback_case
 from src.demo_cache import DEMO_SCENARIOS
 from src.feature_extractor import ALGO_FAMILY_LABELS_PT, BUG_CLASS_LABELS_PT
+from src.free_llm_engine import ask_socratic_followup, get_active_free_provider
 from src.ml_predictor import DEFAULT_WEIGHTS_PATH
+from src.problem_fetcher import FetchedProblem, fetch_problem_from_url
 from src.real_problems_catalog import RealProblemsCatalog
+from src.sandbox_runner import SandboxResult, TestCaseInput, run_test_cases_in_sandbox
 from src.static_analyzer import Language
+from src.storage import list_custom_problems, save_custom_problem
 from src.vision_ocr import VisionMode, extract_from_multiple_images, stitch_overlapping_texts
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -43,8 +48,46 @@ class DiagnoseRequest(BaseModel):
     language: Language = "cpp"
     problem_statement: str = ""
     code: str = Field(..., min_length=1)
+    verdict: str = "unknown"
+    sample_input: str = ""
+    expected_output: str = ""
+    test_cases: list[TestCaseInput] = Field(default_factory=list)
     demo_id: str | None = None
     source_filter: str | None = None
+
+
+class RunTestsRequest(BaseModel):
+    """Standalone multi-testcase sandbox execution request."""
+
+    language: Language = "cpp"
+    code: str = Field(..., min_length=1)
+    test_cases: list[TestCaseInput] = Field(default_factory=list)
+
+
+class ChatRequest(BaseModel):
+    """Socratic follow-up question from the monitor on the bench."""
+
+    question: str = Field(..., min_length=1)
+    language: Language = "cpp"
+    code: str = ""
+    problem_statement: str = ""
+    previous_diagnosis: str = ""
+
+
+class CustomProblemRequest(BaseModel):
+    """Save a classroom problem (NEPS, Beecrowd, Codeforces, AtCoder, Uber Code Club)."""
+
+    platform: str = "NEPS / Aula"
+    title: str = Field(..., min_length=2)
+    statement: str = Field(..., min_length=5)
+    sample_input: str = ""
+    expected_output: str = ""
+
+
+class FetchUrlRequest(BaseModel):
+    """Fetch a problem statement and sample I/O from a URL."""
+
+    url: str = Field(..., min_length=4)
 
 
 class FeedbackRequest(BaseModel):
@@ -73,9 +116,12 @@ def health_check() -> dict[str, Any]:
     if DEFAULT_WEIGHTS_PATH.exists():
         raw = json.loads(DEFAULT_WEIGHTS_PATH.read_text(encoding="utf-8"))
         meta = raw.get("metadata", {})
+    provider = get_active_free_provider()
     return {
         "status": "ok",
-        "zero_api_mode": True,
+        "zero_api_mode": provider is None,
+        "ai_provider": f"{provider['name']}:{provider['model']}" if provider else "local_sandbox_ml",
+        "compiler_available": bool(shutil.which("g++")),
         "weights_loaded": DEFAULT_WEIGHTS_PATH.exists(),
         "real_problems_count": _PROBLEM_CATALOG.total_count(),
         "model_metadata": meta,
@@ -124,9 +170,65 @@ def diagnose_submission(req: DiagnoseRequest) -> DiagnosisResponse:
         language=req.language,
         code=req.code,
         problem_statement=req.problem_statement,
+        verdict=req.verdict,
+        sample_input=req.sample_input,
+        expected_output=req.expected_output,
+        test_cases=req.test_cases,
         demo_id=req.demo_id,
         source_filter=filt,
     )
+
+
+@app.post("/api/run-tests", response_model=SandboxResult)
+def run_tests_endpoint(req: RunTestsRequest) -> SandboxResult:
+    """Compile and execute student code against one or more test cases (with ASan/UBSan when available)."""
+    if not req.code.strip():
+        raise HTTPException(status_code=400, detail="O código do aluno não pode estar vazio.")
+    if not req.test_cases:
+        raise HTTPException(status_code=400, detail="Adicione pelo menos um caso de teste.")
+    return run_test_cases_in_sandbox(
+        code=req.code,
+        language=req.language,
+        test_cases=req.test_cases,
+    )
+
+
+@app.post("/api/chat")
+def socratic_chat_endpoint(req: ChatRequest) -> dict[str, Any]:
+    """Answer a monitor's follow-up question on the bench."""
+    reply, model_used = ask_socratic_followup(
+        question=req.question,
+        language=req.language,
+        code=req.code,
+        problem_statement=req.problem_statement,
+        previous_diagnosis=req.previous_diagnosis,
+    )
+    return {"reply": reply, "model_used": model_used}
+
+
+@app.get("/api/problems/custom")
+def get_custom_problems(limit: int = 50) -> dict[str, Any]:
+    """Return classroom problems saved by instructors/monitors."""
+    items = list_custom_problems(limit=limit)
+    return {"count": len(items), "problems": items}
+
+
+@app.post("/api/problems/custom")
+def create_custom_problem(req: CustomProblemRequest) -> dict[str, Any]:
+    """Save a custom NEPS/Beecrowd/Uber Code Club problem into SQLite."""
+    return save_custom_problem(
+        platform=req.platform,
+        title=req.title,
+        statement=req.statement,
+        sample_input=req.sample_input,
+        expected_output=req.expected_output,
+    )
+
+
+@app.post("/api/problems/fetch-url", response_model=FetchedProblem)
+def fetch_problem_url_endpoint(req: FetchUrlRequest) -> FetchedProblem:
+    """Import problem statement and sample I/O from a NEPS, Beecrowd, AtCoder, CSES, or Codeforces link."""
+    return fetch_problem_from_url(req.url)
 
 
 @app.post("/api/ocr")
@@ -145,7 +247,18 @@ async def ocr_multiple_images(
             images_bytes.append(raw)
     if not images_bytes:
         raise HTTPException(status_code=400, detail="Arquivos de imagem vazios.")
-    out = extract_from_multiple_images(images_bytes, mode=mode)
+    try:
+        out = extract_from_multiple_images(images_bytes, mode=mode)
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="Leitura de fotos (OCR) indisponivel neste ambiente. Cole o texto diretamente.",
+        ) from None
+    except Exception as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Nao foi possivel ler a imagem: {exc}",
+        ) from None
     if existing_text.strip() and out.get("extracted_text"):
         out["extracted_text"] = stitch_overlapping_texts(
             existing_text.strip(),

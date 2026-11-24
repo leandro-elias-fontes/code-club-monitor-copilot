@@ -14,6 +14,7 @@ from src.static_analyzer import (
     StaticReport,
     _strip_cpp_comments_and_strings,
     analyze_code,
+    find_endl_in_loop_line,
 )
 
 AlgoFamily = Literal[
@@ -424,10 +425,15 @@ def extract_all_features(
     # Off-by-one / Out-of-bounds
     has_le_zero = 0.0
     has_idx_plus_one = 0.0
+    has_n_plus_one_alloc = bool(re.search(r"\[\s*\w+\s*\+\s*\d+\s*\]|\(\s*\w+\s*\+\s*\d+", cleaned))
     for idx, line in enumerate(lines, start=1):
-        if language in ("cpp", "c") and re.search(r"for\s*\([^;]*=\s*0\s*;[^;]*<=\s*\w+", line):
-            has_le_zero = 1.0
-            suspect_lines.setdefault("off_by_one_bounds", idx)
+        if language in ("cpp", "c"):
+            m_le = re.search(r"for\s*\([^;]*=\s*0\s*;[^;]*<=\s*(\w+)", line)
+            if m_le:
+                bound = m_le.group(1)
+                if not (bound.isdigit() and int(bound) <= 30) and not has_n_plus_one_alloc:
+                    has_le_zero = 1.0
+                    suspect_lines.setdefault("off_by_one_bounds", idx)
         elif language == "python" and (
             re.search(r"range\s*\([^)]*len\([^)]+\)\s*\+\s*1\)", line)
             or re.search(r"<=\s*len\(", line)
@@ -459,14 +465,11 @@ def extract_all_features(
 
     # Slow I/O endl inside loop
     has_endl_loop = 0.0
-    in_loop = False
-    for idx, line in enumerate(lines, start=1):
-        if re.search(r"\b(for|while)\b", line):
-            in_loop = True
-        if in_loop and "endl" in line:
+    if language in ("cpp", "c"):
+        endl_line = find_endl_in_loop_line(cleaned)
+        if endl_line is not None:
             has_endl_loop = 1.0
-            suspect_lines.setdefault("tle_slow_io_endl", idx)
-            break
+            suspect_lines.setdefault("tle_slow_io_endl", endl_line)
 
     has_fast_io = 1.0 if ("sync_with_stdio" in cleaned or "sys.stdin" in cleaned) else 0.0
 

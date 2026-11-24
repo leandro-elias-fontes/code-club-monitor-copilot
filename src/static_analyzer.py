@@ -127,6 +127,39 @@ def _cpp_loop_depth(cleaned_code: str) -> int:
     return max_depth
 
 
+def find_endl_in_loop_line(cleaned_code: str) -> int | None:
+    """Return 1-based line number of std::endl inside an active loop, or None."""
+    brace_depth = 0
+    loop_brace_stack: list[int] = []
+    pending_loop_stmt = False
+    for idx, line in enumerate(cleaned_code.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        has_loop_kw = bool(re.search(r"\b(for|while)\s*\(", stripped))
+        in_active_loop = bool(loop_brace_stack) or pending_loop_stmt or has_loop_kw
+        if in_active_loop and re.search(r"\bendl\b", stripped):
+            return idx
+        if has_loop_kw:
+            if "{" in stripped:
+                loop_brace_stack.append(brace_depth + 1)
+            elif not stripped.endswith(";"):
+                pending_loop_stmt = True
+        for ch in stripped:
+            if ch == "{":
+                brace_depth += 1
+                if pending_loop_stmt:
+                    loop_brace_stack.append(brace_depth)
+                    pending_loop_stmt = False
+            elif ch == "}":
+                while loop_brace_stack and loop_brace_stack[-1] >= brace_depth:
+                    loop_brace_stack.pop()
+                brace_depth = max(0, brace_depth - 1)
+            elif ch == ";" and pending_loop_stmt and not has_loop_kw:
+                pending_loop_stmt = False
+    return None
+
+
 def analyze_code(code: str, language: Language, problem_statement: str = "") -> StaticReport:
     """Run all deterministic static checks on C/C++/Python code."""
     findings: list[str] = []
@@ -187,9 +220,16 @@ def analyze_code(code: str, language: Language, problem_statement: str = "") -> 
         )
         rag_hints.append("overflow int long long")
 
-    # 2. <= in 0-indexed loop
+    # 2. <= in 0-indexed loop (ignore small fixed bounds like <= 9 or <= 26, or when container is sized n+1)
+    has_n_plus_one_alloc = bool(re.search(r"\[\s*\w+\s*\+\s*\d+\s*\]|\(\s*\w+\s*\+\s*\d+", cleaned))
     for idx, line in enumerate(lines, start=1):
-        if re.search(r"for\s*\([^;]*\b\w+\s*=\s*0\s*;[^;]*<=\s*\w+", line):
+        m_le = re.search(r"for\s*\([^;]*\b\w+\s*=\s*0\s*;[^;]*<=\s*(\w+)", line)
+        if m_le:
+            bound = m_le.group(1)
+            if bound.isdigit() and int(bound) <= 30:
+                continue
+            if has_n_plus_one_alloc:
+                continue
             findings.append(
                 f"Linha {idx}: condicao '<=' em laco comecando em 0 pode causar acesso fora dos limites (out-of-bounds)."
             )
@@ -215,16 +255,12 @@ def analyze_code(code: str, language: Language, problem_statement: str = "") -> 
         rag_hints.append("multiplos casos global clear memset")
 
     # 4. endl inside loop
-    in_loop = False
-    for idx, line in enumerate(lines, start=1):
-        if re.search(r"\b(for|while)\s*\(", line):
-            in_loop = True
-        if in_loop and "endl" in line:
-            findings.append(
-                f"Linha {idx}: uso de 'endl' dentro de laco forca flush constante e pode causar TLE (prefira '\\n')."
-            )
-            rag_hints.append("endl tle fast io")
-            break
+    endl_line = find_endl_in_loop_line(cleaned)
+    if endl_line is not None:
+        findings.append(
+            f"Linha {endl_line}: uso de 'endl' dentro de laco forca flush constante e pode causar TLE (prefira '\\n')."
+        )
+        rag_hints.append("endl tle fast io")
 
     return StaticReport(
         language=language,

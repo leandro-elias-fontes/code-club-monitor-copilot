@@ -18,9 +18,18 @@ from src.feature_extractor import (
     ProblemConstraints,
     extract_all_features,
 )
+from src.free_llm_engine import diagnose_with_free_llm
 from src.ml_predictor import ZeroAPIMLPredictor, build_symbolic_diagnosis
+from src.platform_rules import detect_platform_bugs
 from src.rag_retriever import RAGReference, RAGRetriever
+from src.sandbox_runner import (
+    SandboxResult,
+    TestCaseInput,
+    extract_all_sample_ios,
+    run_test_cases_in_sandbox,
+)
 from src.static_analyzer import Language, StaticReport
+from src.storage import log_feedback_sqlite
 
 try:
     from google import genai
@@ -73,8 +82,10 @@ class DiagnosisResponse(BaseModel):
     problem_constraints: ProblemConstraints = Field(default_factory=ProblemConstraints)
     rag_references: list[RAGReference] = Field(default_factory=list)
     static_report: StaticReport
+    execution_result: SandboxResult | None = None
     source: Literal[
         "trained_ml_engine",
+        "free_llm",
         "demo_cache",
         "security_block",
         "gemini_llm",
@@ -91,10 +102,15 @@ class AgentState(TypedDict, total=False):
     language: Language
     problem_statement: str
     code: str
+    verdict: str
+    sample_input: str
+    expected_output: str
+    test_cases: list[TestCaseInput]
     source_filter: str | None
     use_gemini_if_configured: bool
     feature_analysis: CodeFeatureAnalysis
     static_report: StaticReport
+    execution_result: SandboxResult | None
     rag_references: list[RAGReference]
     diagnosis: LLMDiagnosisPayload
     how_to_fix: str
@@ -107,6 +123,7 @@ class AgentState(TypedDict, total=False):
     problem_constraints: ProblemConstraints
     source: Literal[
         "trained_ml_engine",
+        "free_llm",
         "demo_cache",
         "security_block",
         "gemini_llm",
@@ -212,6 +229,111 @@ def rag_retrieve_node(state: AgentState) -> dict[str, Any]:
     return {"rag_references": refs}
 
 
+def _apply_sandbox_and_platform_checks(
+    state: AgentState,
+    sym: dict[str, Any],
+    bug_cls: str,
+    sandbox: SandboxResult | None,
+) -> tuple[dict[str, Any], str]:
+    """Refine symbolic/ML diagnosis with real sandbox execution and platform-specific rules."""
+    verdict = state.get("verdict", "unknown")
+    final_bug_cls = sym.get("override_bug_class", bug_cls)
+    is_micro_or_mismatch = final_bug_cls in ("compile_or_micro_error", "problem_code_mismatch")
+
+    # 1. If not already a compile/micro-error or domain mismatch, check Beecrowd/NEPS/CF/AtCoder rules
+    if not is_micro_or_mismatch:
+        plat = detect_platform_bugs(
+            code=state["code"],
+            language=state["language"],
+            problem_statement=state.get("problem_statement", ""),
+            verdict=verdict,
+        )
+        if plat is not None:
+            sym = {
+                **sym,
+                "bug_location": plat.bug_location,
+                "counterexample": plat.counterexample,
+                "how_to_fix": plat.how_to_fix,
+                "monitor_tip": plat.monitor_tip,
+                "bug_label": plat.title,
+                "suspect_line": plat.suspect_line or sym.get("suspect_line"),
+                "override_bug_class": plat.bug_class,
+            }
+            final_bug_cls = plat.bug_class
+
+    # 2. Override or enrich with real sandbox execution results
+    if sandbox is not None and sandbox.ran:
+        if sandbox.status == "ce" and not is_micro_or_mismatch:
+            sym = {
+                **sym,
+                "bug_location": f"Erro real de compilação:\n{sandbox.stderr[:450]}",
+                "counterexample": "Não aplicável (código não compilou).",
+                "how_to_fix": "Corrija o erro de sintaxe/tipo apontado pelo compilador na linha indicada.",
+                "monitor_tip": "Peça ao aluno para ler a mensagem do compilador na linha indicada e verificar o que está faltando.",
+                "bug_label": "Erro de Compilação (Confirmado pelo Compilador)",
+                "suspect_line": sandbox.error_line or sym.get("suspect_line"),
+                "is_compile_error": True,
+                "override_bug_class": "compile_or_micro_error",
+            }
+            final_bug_cls = "compile_or_micro_error"
+        elif sandbox.status == "rte":
+            san_prefix = f"{sandbox.sanitizer_issue}\n" if sandbox.sanitizer_issue else ""
+            sym = {
+                **sym,
+                "bug_location": f"{san_prefix}O código quebrou em tempo de execução (RTE) ao rodar o caso de teste:\n{sandbox.stderr[:400]}",
+                "counterexample": f"Entrada testada:\n{sandbox.sample_input[:300]}\n\nErro:\n{sandbox.stderr[:300]}",
+                "how_to_fix": "Verifique acesso fora dos limites do vetor, estouro de inteiro, divisão por zero ou profundidade de recursão.",
+                "monitor_tip": "Pergunte ao aluno: 'Em qual linha o programa travou quando rodamos o exemplo? Qual variável pode estar com índice inválido, overflow ou dividindo por zero?'",
+                "bug_label": (
+                    sandbox.sanitizer_issue.split(":")[0] + ": " + sandbox.sanitizer_issue.split(":", 1)[1].strip()[:65]
+                    if sandbox.sanitizer_issue and ":" in sandbox.sanitizer_issue
+                    else "Runtime Error (Confirmado na Execução)"
+                ),
+                "suspect_line": sandbox.error_line or sym.get("suspect_line"),
+                "override_bug_class": "runtime_error",
+            }
+            final_bug_cls = "runtime_error"
+        elif sandbox.status == "tle":
+            sym = {
+                **sym,
+                "bug_location": f"O código excedeu o tempo limite ({sandbox.runtime_ms:.0f} ms) ao rodar o caso de teste (loop infinito ou complexidade alta).",
+                "counterexample": f"Entrada testada:\n{sandbox.sample_input[:300]}\nResultado: Timeout ({sandbox.runtime_ms:.0f} ms)",
+                "how_to_fix": "Verifique a condição de parada do `while`/`for` (loop infinito) ou otimize a complexidade dos laços.",
+                "monitor_tip": "Pergunte ao aluno: 'O seu laço while/for sempre avança em direção à condição de parada? Teste com o exemplo no papel.'",
+                "bug_label": "Time Limit Exceeded / Loop Infinito (Confirmado)",
+                "override_bug_class": "tle_quadratic_complexity",
+            }
+            final_bug_cls = "tle_quadratic_complexity"
+        elif sandbox.status == "pe":
+            sym = {
+                **sym,
+                "bug_location": "Os valores da saída estão corretos, mas há diferença de espaços em branco, quebras de linha ou maiúsculas/minúsculas (Presentation Error).",
+                "counterexample": f"Saída do Aluno:\n{repr(sandbox.actual_output[:200])}\n\nSaída Esperada:\n{repr(sandbox.expected_output[:200])}",
+                "how_to_fix": "Ajuste espaços extras no final da linha, quebras de linha (`\\n`) ou capitalização exatamente como o enunciado pede.",
+                "monitor_tip": "Mostre ao aluno a comparação entre a saída dele e a esperada e pergunte: 'Onde há um espaço ou quebra de linha a mais ou a menos?'",
+                "bug_label": "Presentation Error (Confirmado na Execução)",
+                "override_bug_class": "presentation_or_precision",
+            }
+            final_bug_cls = "presentation_or_precision"
+        elif sandbox.status == "wa" and final_bug_cls == "clean_or_minor_logic":
+            sym = {
+                **sym,
+                "bug_location": "O código compilou e rodou sem erros estruturais, mas produziu uma resposta diferente da esperada no caso de teste (Wrong Answer).",
+                "counterexample": (
+                    f"Entrada:\n{sandbox.sample_input[:250]}\n\n"
+                    f"Saída do Aluno:\n{sandbox.actual_output[:250]}\n\n"
+                    f"Saída Esperada:\n{sandbox.expected_output[:250]}"
+                ),
+                "how_to_fix": "Compare a lógica/fórmula do código passo a passo com o caso de exemplo acima para encontrar onde o cálculo diverge.",
+                "monitor_tip": "Mostre a diferença entre a saída do código e a esperada e pergunte: 'Fazendo esse caso no papel, em qual passo o seu código calcula um valor diferente?'",
+                "bug_label": "Wrong Answer no Caso de Teste (Confirmado na Execução)",
+                "override_bug_class": "wrong_answer_sample",
+            }
+            final_bug_cls = "wrong_answer_sample"
+
+    return sym, final_bug_cls
+
+
 def llm_diagnosis_node(state: AgentState) -> dict[str, Any]:
     """Node 3: Generate structured 4-block diagnosis via trained Dual-ML Engine (0 API keys required)."""
     analysis = state["feature_analysis"]
@@ -264,13 +386,63 @@ def llm_diagnosis_node(state: AgentState) -> dict[str, Any]:
         analysis=analysis,
     )
 
-    model_tag = (
-        "BugMLP-PyTorch + AlgoNB (Zero-API Local Weights)"
-        if _ML_PREDICTOR.is_loaded()
-        else "AST-Calibrated-Engine (Zero-API)"
-    )
+    # Run real sandbox when test cases or sample I/O are provided or extracted from statement
+    cases: list[TestCaseInput] = list(state.get("test_cases") or [])
+    if not cases:
+        sample_in = state.get("sample_input", "").strip()
+        expected_out = state.get("expected_output", "").strip()
+        if sample_in or expected_out:
+            cases = [TestCaseInput(name="Exemplo 1", sample_input=sample_in, expected_output=expected_out)]
+        else:
+            cases = extract_all_sample_ios(state.get("problem_statement", ""))
 
-    final_bug_cls = sym.get("override_bug_class", bug_cls)
+    sandbox: SandboxResult | None = None
+    if cases:
+        sandbox = run_test_cases_in_sandbox(
+            code=state["code"],
+            language=state["language"],
+            test_cases=cases,
+        )
+
+    sym, final_bug_cls = _apply_sandbox_and_platform_checks(state, sym, bug_cls, sandbox)
+
+    # Try free OpenAI-compatible LLM (Groq / OpenRouter Free / GitHub Models / Ollama) grounded in real sandbox evidence
+    free_ai = diagnose_with_free_llm(
+        language=state["language"],
+        code=state["code"],
+        problem_statement=state.get("problem_statement", ""),
+        verdict=state.get("verdict", "unknown"),
+        sandbox=sandbox,
+        static_findings=report.findings,
+        rag_refs=state.get("rag_references", []),
+    )
+    if free_ai is not None:
+        ai_diag, ai_model, ai_tokens = free_ai
+        return {
+            "diagnosis": LLMDiagnosisPayload(
+                student_logic=ai_diag.student_logic,
+                bug_location=ai_diag.bug_location,
+                counterexample=ai_diag.counterexample,
+                monitor_tip=ai_diag.monitor_tip,
+            ),
+            "how_to_fix": ai_diag.how_to_fix,
+            "suspect_line": ai_diag.suspect_line or sym.get("suspect_line"),
+            "is_compile_error": bool(sym.get("is_compile_error", False) or (sandbox and sandbox.status == "ce")),
+            "execution_result": sandbox,
+            "predicted_bug_class": final_bug_cls,
+            "predicted_bug_label": ai_diag.predicted_bug_label,
+            "bug_confidence": 0.99,
+            "class_probabilities": prob_dict,
+            "source": "free_llm",
+            "model_used": ai_model,
+            "tokens_used": ai_tokens,
+        }
+
+    model_tag = (
+        "BugMLP-PyTorch + AlgoNB + Sandbox (Zero-API)"
+        if _ML_PREDICTOR.is_loaded()
+        else "AST-Calibrated-Engine + Sandbox (Zero-API)"
+    )
 
     return {
         "diagnosis": LLMDiagnosisPayload(
@@ -282,6 +454,7 @@ def llm_diagnosis_node(state: AgentState) -> dict[str, Any]:
         "how_to_fix": sym.get("how_to_fix", ""),
         "suspect_line": sym.get("suspect_line"),
         "is_compile_error": bool(sym.get("is_compile_error", False)),
+        "execution_result": sandbox,
         "predicted_bug_class": final_bug_cls,
         "predicted_bug_label": sym["bug_label"],
         "bug_confidence": 0.99 if "override_bug_class" in sym else bug_conf,
@@ -315,6 +488,10 @@ def run_copilot(
     problem_statement: str = "",
     demo_id: str | None = None,
     source_filter: str | None = None,
+    verdict: str = "unknown",
+    sample_input: str = "",
+    expected_output: str = "",
+    test_cases: list[TestCaseInput] | None = None,
 ) -> DiagnosisResponse:
     """Execute demo cache check or the Zero-API Dual-ML LangGraph pipeline."""
     t0 = time.perf_counter()
@@ -356,6 +533,10 @@ def run_copilot(
             "language": language,
             "problem_statement": problem_statement,
             "code": code,
+            "verdict": verdict,
+            "sample_input": sample_input,
+            "expected_output": expected_output,
+            "test_cases": test_cases or [],
             "source_filter": source_filter,
         }
     )
@@ -379,6 +560,7 @@ def run_copilot(
         problem_constraints=final_state.get("problem_constraints", ProblemConstraints()),
         rag_references=final_state.get("rag_references", []),
         static_report=final_state["static_report"],
+        execution_result=final_state.get("execution_result"),
         source=final_state["source"],
         model_used=final_state["model_used"],
         tokens_used=final_state.get("tokens_used", 0),
@@ -412,4 +594,5 @@ def save_monitor_feedback_case(
     except OSError:
         # On read-only serverless file systems (like Vercel prod), return the JSON record for download
         saved_on_disk = False
+    log_feedback_sqlite(language, bug_class, algo_family, monitor_notes)
     return {"saved_on_disk": saved_on_disk, "record": record}
