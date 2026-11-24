@@ -141,7 +141,7 @@ def _parse_atcoder_html(raw_html: str, url: str) -> FetchedProblem:
     cases: list[TestCaseInput] = []
     pres = re.findall(r"<h3[^>]*>\s*Sample\s+Input\s*(\d*)\s*</h3>\s*<pre[^>]*>([\s\S]*?)</pre>", block, re.IGNORECASE)
     outs = re.findall(r"<h3[^>]*>\s*Sample\s+Output\s*(\d*)\s*</h3>\s*<pre[^>]*>([\s\S]*?)</pre>", block, re.IGNORECASE)
-    for i, ((_, inp_raw), (_, out_raw)) in enumerate(zip(pres, outs), start=1):
+    for i, ((_, inp_raw), (_, out_raw)) in enumerate(zip(pres, outs, strict=False), start=1):
         cases.append(
             TestCaseInput(
                 name=f"Exemplo {i}",

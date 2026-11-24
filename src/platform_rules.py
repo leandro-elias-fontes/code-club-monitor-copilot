@@ -83,7 +83,7 @@ def detect_platform_bugs(
                             f"Na linha {idx}, use tipo 'double' nas variáveis ou force conversão com '1.0 * ...' / '(double)...'."
                         ),
                         monitor_tip=(
-                            f"Pergunte ao aluno: 'Em C/C++, quanto dá 5 / 2 quando os dois números são int? "
+                            "Pergunte ao aluno: 'Em C/C++, quanto dá 5 / 2 quando os dois números são int? "
                             "Como fazemos para o computador não jogar fora as casas decimais?'"
                         ),
                         suspect_line=idx,
