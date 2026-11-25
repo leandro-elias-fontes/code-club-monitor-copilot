@@ -618,6 +618,9 @@ def check_micro_errors(code: str, language: Language) -> MicroErrorResult | None
         return sym_res
 
     # Second, if local g++/gcc is available, run -fsyntax-only as an additional compiler check
+    # (disabled on low-CPU servers via GCC_SYNTAX_CHECK=0; the real sandbox compile still catches CE)
+    if os.getenv("GCC_SYNTAX_CHECK", "1").strip() == "0":
+        return None
     compiler_ran, gcc_res = _run_local_gcc_syntax_check(code, language)
     if compiler_ran and gcc_res is not None:
         return gcc_res

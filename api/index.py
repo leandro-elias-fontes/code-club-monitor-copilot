@@ -33,8 +33,8 @@ PUBLIC_HTML_PATH = ROOT_DIR / "public" / "index.html"
 _PROBLEM_CATALOG = RealProblemsCatalog()
 
 app = FastAPI(
-    title="Code Monitor Copilot (Zero-API ML)",
-    version="2.0.0",
+    title="Code Monitor Copilot",
+    version="3.0.0",
     description="Diagnóstico instantâneo via Modelo Duplo Treinado (BugMLP + Algorithm Matcher) e RAG em 5 fontes canônicas.",
 )
 

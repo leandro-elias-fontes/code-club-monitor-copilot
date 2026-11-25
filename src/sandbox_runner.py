@@ -176,37 +176,44 @@ def _compile_c_cpp(
     src_file.write_text(code, encoding="utf-8")
 
     std_flag = "-std=c++17" if language == "cpp" else "-std=c11"
-    base_cmd = [compiler, std_flag, "-O1", "-g", "-Wall", "-Wextra", str(src_file), "-o", str(bin_file)]
+    # Fast build (matches the precompiled bits/stdc++.h header generated in the Dockerfile)
+    base_cmd = [compiler, std_flag, "-O0", "-Wall", "-Wextra", str(src_file), "-o", str(bin_file)]
+    compile_timeout = float(os.getenv("SANDBOX_COMPILE_TIMEOUT", "25"))
 
-    # Try with ASan + UBSan first (works on Linux Docker / Hugging Face Spaces)
-    san_cmd = [
-        compiler,
-        std_flag,
-        "-O1",
-        "-g",
-        "-Wall",
-        "-Wextra",
-        "-fsanitize=address,undefined",
-        "-fno-omit-frame-pointer",
-        str(src_file),
-        "-o",
-        str(bin_file),
-    ]
+    # ASan/UBSan are much heavier to compile; opt-in via SANDBOX_SANITIZERS=1 (slow on low-CPU free tiers)
+    use_sanitizers = os.getenv("SANDBOX_SANITIZERS", "0").strip() == "1"
     sanitizers_used = False
     try:
-        comp = subprocess.run(san_cmd, capture_output=True, text=True, timeout=7.0)
-        stderr_txt = (comp.stderr or "").strip()
-        # If toolchain doesn't have libasan/libubsan (e.g. Windows MinGW), fallback to standard build
-        if comp.returncode != 0 and any(
-            tok in stderr_txt.lower()
-            for tok in ("libasan", "libubsan", "cannot find -lasan", "cannot find -lubsan", "unrecognized", "sanitizer")
-        ):
-            comp = subprocess.run(base_cmd, capture_output=True, text=True, timeout=6.0)
+        if use_sanitizers:
+            san_cmd = [
+                compiler,
+                std_flag,
+                "-O1",
+                "-g",
+                "-Wall",
+                "-Wextra",
+                "-fsanitize=address,undefined",
+                "-fno-omit-frame-pointer",
+                str(src_file),
+                "-o",
+                str(bin_file),
+            ]
+            comp = subprocess.run(san_cmd, capture_output=True, text=True, timeout=compile_timeout)
             stderr_txt = (comp.stderr or "").strip()
-        elif comp.returncode == 0:
-            sanitizers_used = True
+            if comp.returncode != 0 and any(
+                tok in stderr_txt.lower()
+                for tok in ("libasan", "libubsan", "cannot find -lasan", "cannot find -lubsan", "unrecognized", "sanitizer")
+            ):
+                comp = subprocess.run(base_cmd, capture_output=True, text=True, timeout=compile_timeout)
+                stderr_txt = (comp.stderr or "").strip()
+            elif comp.returncode == 0:
+                sanitizers_used = True
+        else:
+            comp = subprocess.run(base_cmd, capture_output=True, text=True, timeout=compile_timeout)
+            stderr_txt = (comp.stderr or "").strip()
     except subprocess.TimeoutExpired:
-        return None, [], False, "Tempo limite excedido durante a compilação.", None
+        # Slow server: do NOT report a fake Compile Error, just skip execution
+        return None, [], False, "", None
 
     warnings = _parse_compiler_warnings(stderr_txt)
     if comp.returncode != 0:

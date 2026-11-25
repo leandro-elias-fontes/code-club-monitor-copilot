@@ -277,7 +277,7 @@ def diagnose_with_free_llm(
                 messages=messages,
                 temperature=0.15,
                 max_tokens=850,
-                timeout_sec=25.0,
+                timeout_sec=15.0,
             )
             parsed_dict = _extract_json_block(content)
             parsed = FreeAIDiagnosis.model_validate(parsed_dict)
@@ -328,7 +328,7 @@ def ask_socratic_followup(
                     messages=messages,
                     temperature=0.3,
                     max_tokens=450,
-                    timeout_sec=25.0,
+                    timeout_sec=15.0,
                 )
                 if ans:
                     return ans, f"{provider['name']}:{provider['model']}"
