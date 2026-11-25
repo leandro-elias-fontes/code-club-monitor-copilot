@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,7 @@ DEFAULT_GGUF_PATH = (
     Path(__file__).resolve().parent.parent / "data" / "models" / "qwen2.5-coder-3b-instruct-q4_k_m.gguf"
 )
 _LOCAL_LLAMA_INSTANCE: Any = None
+_LOCAL_LLAMA_LOCK = threading.Lock()
 
 
 class FreeAIDiagnosis(BaseModel):
@@ -116,12 +118,13 @@ def _run_chat_completion(
 ) -> tuple[str, int]:
     """Execute chat completion via embedded local_gguf or OpenAI-compatible HTTP endpoint."""
     if provider["name"] == "local_gguf":
-        llm = _get_local_llama(provider["model_path"])
-        out = llm.create_chat_completion(
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        with _LOCAL_LLAMA_LOCK:
+            llm = _get_local_llama(provider["model_path"])
+            out = llm.create_chat_completion(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
         content = (out["choices"][0]["message"]["content"] or "").strip()
         tokens = int((out.get("usage") or {}).get("total_tokens", 0) or 0)
         return content, tokens

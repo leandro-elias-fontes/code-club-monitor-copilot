@@ -60,11 +60,11 @@ class DiagnoseRequest(BaseModel):
     """Request payload for code + problem diagnosis."""
 
     language: Language = "cpp"
-    problem_statement: str = ""
-    code: str = Field(..., min_length=1)
+    problem_statement: str = Field(default="", max_length=30000)
+    code: str = Field(..., min_length=1, max_length=50000)
     verdict: str = "unknown"
-    sample_input: str = ""
-    expected_output: str = ""
+    sample_input: str = Field(default="", max_length=10000)
+    expected_output: str = Field(default="", max_length=10000)
     test_cases: list[TestCaseInput] = Field(default_factory=list)
     demo_id: str | None = None
     source_filter: str | None = None
@@ -74,7 +74,7 @@ class RunTestsRequest(BaseModel):
     """Standalone multi-testcase sandbox execution request."""
 
     language: Language = "cpp"
-    code: str = Field(..., min_length=1)
+    code: str = Field(..., min_length=1, max_length=50000)
     test_cases: list[TestCaseInput] = Field(default_factory=list)
 
 

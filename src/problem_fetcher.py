@@ -69,7 +69,7 @@ class _TextExtractor(HTMLParser):
 
 def _html_to_text(raw_html: str) -> str:
     parser = _TextExtractor()
-    parser.feed(raw_html)
+    parser.feed((raw_html or "")[:500_000])
     return parser.get_text()
 
 
