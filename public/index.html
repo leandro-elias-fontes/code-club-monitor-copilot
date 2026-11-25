@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Code Monitor — Bancada de Monitoria</title>
+  <title>Code Monitor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <!-- CodeMirror 5 IDE Editor -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js" defer></script>
@@ -15,7 +14,6 @@
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js" defer></script>
   <style>
     :root {
-      /* Architectural Gallery Light + Ink + Cobalt Accent (gemini-frontend-design) */
       --bg-page: #f5f6f8;
       --bg-surface: #ffffff;
       --bg-subtle: #eef0f4;
@@ -28,7 +26,6 @@
       --accent: #1d4ed8;
       --accent-hover: #1e40af;
       --accent-soft: #eff6ff;
-      --accent-border: #bfdbfe;
       --err: #be123c;
       --err-bg: #fff1f2;
       --err-border: #fecdd3;
@@ -38,8 +35,6 @@
       --ok: #047857;
       --ok-bg: #ecfdf5;
       --ok-border: #a7f3d0;
-
-      /* Strict 3-size body typography scale (>= 13px) */
       --text-heading: 1.0625rem;
       --text-body: 0.9375rem;
       --text-sm: 0.8125rem;
@@ -60,17 +55,38 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    .mono {
-      font-family: 'JetBrains Mono', monospace;
-      font-variant-numeric: tabular-nums;
-    }
+    .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
     .hidden { display: none !important; }
 
-    /* Single-Line Architectural Header */
+    /* PIN Overlay */
+    .pin-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .pin-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+    }
+
+    /* Header */
     .topbar {
-      min-height: 60px;
-      background: rgba(255, 255, 255, 0.92);
-      backdrop-filter: blur(10px);
+      min-height: 58px;
+      background: var(--bg-surface);
       border-bottom: 1px solid var(--border);
       position: sticky;
       top: 0;
@@ -82,46 +98,22 @@
       gap: 16px;
     }
 
-    .brand { display: flex; align-items: baseline; gap: 14px; }
-
+    .brand { display: flex; align-items: baseline; gap: 12px; }
     .brand-wordmark {
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       font-weight: 700;
       letter-spacing: -0.03em;
       color: var(--ink);
       display: inline-flex;
       align-items: center;
-      gap: 9px;
+      gap: 8px;
     }
-
-    .brand-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 2px;
-      background: var(--accent);
-      display: inline-block;
-    }
-
-    .engine-status {
-      font-size: var(--text-sm);
-      color: var(--ink-muted);
-      font-weight: 500;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .status-led {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--ok);
-    }
+    .brand-dot { width: 9px; height: 9px; border-radius: 2px; background: var(--accent); display: inline-block; }
+    .engine-status { font-size: var(--text-sm); color: var(--ink-muted); font-weight: 500; }
 
     .topbar-actions { display: flex; align-items: center; gap: 8px; }
-
     .select-compact, .btn-ghost {
-      height: 36px;
+      height: 34px;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       color: var(--ink-secondary);
@@ -133,38 +125,26 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: border-color 0.15s, color 0.15s, background 0.15s;
       font-family: inherit;
+      transition: all 0.15s;
     }
-
-    .select-compact:hover, .btn-ghost:hover {
-      border-color: var(--border-strong);
-      color: var(--ink);
-      background: var(--bg-subtle);
-    }
-
-    .btn-ghost.active-toggle {
-      background: var(--ok-bg);
-      border-color: var(--ok-border);
-      color: var(--ok);
-    }
-
+    .select-compact:hover, .btn-ghost:hover { border-color: var(--border-strong); color: var(--ink); background: var(--bg-subtle); }
+    .btn-ghost.active-toggle { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
     .select-compact { max-width: 210px; outline: none; }
 
-    /* Workspace Grid */
+    /* Main Split */
     .workspace {
-      max-width: 1440px;
+      max-width: 1380px;
       width: 100%;
       margin: 0 auto;
-      padding: 24px 28px 40px;
+      padding: 22px 28px 40px;
       flex: 1;
       display: grid;
-      grid-template-columns: minmax(480px, 600px) 1fr;
+      grid-template-columns: minmax(460px, 580px) 1fr;
       gap: 24px;
       align-items: start;
     }
 
-    /* Surface Panels */
     .panel {
       background: var(--bg-surface);
       border: 1px solid var(--border);
@@ -173,25 +153,19 @@
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
 
-    .panel-header {
+    .panel-toolbar {
       padding: 12px 18px;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      background: var(--bg-surface);
+      flex-wrap: wrap;
     }
 
-    .segmented {
-      display: inline-flex;
-      background: var(--bg-subtle);
-      padding: 3px;
-      border-radius: 8px;
-    }
-
+    .segmented { display: inline-flex; background: var(--bg-subtle); padding: 3px; border-radius: 8px; }
     .seg-btn {
-      padding: 6px 14px;
+      padding: 5px 13px;
       border-radius: 6px;
       font-size: var(--text-sm);
       font-weight: 600;
@@ -200,100 +174,19 @@
       border: none;
       cursor: pointer;
       font-family: inherit;
-      transition: all 0.15s;
     }
+    .seg-btn.active { background: var(--bg-surface); color: var(--ink); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
 
-    .seg-btn.active {
-      background: var(--bg-surface);
-      color: var(--ink);
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
-    }
-
-    /* Drawers */
-    .drawer {
-      padding: 14px 18px;
-      background: var(--bg-subtle);
-      border-bottom: 1px solid var(--border);
-      display: none;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .drawer.open { display: flex; }
-    .drawer-row { display: grid; grid-template-columns: 1fr 175px; gap: 8px; }
-
-    .input-ctrl {
-      width: 100%;
-      height: 36px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      color: var(--ink);
-      border-radius: 8px;
-      padding: 0 12px;
-      font-size: var(--text-sm);
-      font-family: inherit;
-      outline: none;
-    }
-    .input-ctrl:focus { border-color: var(--accent); }
-
-    /* Field Blocks */
     .field-block { padding: 16px 18px; border-bottom: 1px solid var(--border); }
     .field-block.no-border { border-bottom: none; }
 
-    .field-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      gap: 8px;
-    }
+    .field-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+    .field-label { font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
+    .field-meta { font-size: var(--text-sm); color: var(--ink-muted); }
 
-    .field-label {
-      font-size: var(--text-sm);
-      font-weight: 600;
-      color: var(--ink);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .field-meta { font-size: var(--text-sm); font-weight: 400; color: var(--ink-muted); }
-
-    .btn-upload {
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      color: var(--ink-secondary);
-      font-size: var(--text-sm);
-      font-weight: 500;
-      padding: 5px 10px;
-      border-radius: 7px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-family: inherit;
-      transition: all 0.15s;
-    }
-    .btn-upload:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-
-    .photo-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-    .photo-chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 4px 9px; border-radius: 6px;
-      background: var(--bg-subtle); border: 1px solid var(--border);
-      font-size: var(--text-sm); color: var(--ink-secondary);
-    }
-    .photo-chip img { width: 18px; height: 18px; object-fit: cover; border-radius: 3px; }
-
-    /* Dark IDE Frame inside Light Studio */
-    .cm-host {
-      border: 1px solid var(--border-strong);
-      border-radius: 8px;
-      overflow: hidden;
-      background: var(--bg-code);
-    }
-
+    .cm-host { border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; background: var(--bg-code); }
     .CodeMirror {
-      height: 310px !important;
+      height: 300px !important;
       font-family: 'JetBrains Mono', monospace !important;
       font-size: var(--text-sm) !important;
       line-height: 1.6 !important;
@@ -302,115 +195,51 @@
     }
     .CodeMirror-gutters { background: #0f1218 !important; border-right: 1px solid rgba(255,255,255,0.08) !important; }
     .CodeMirror-linenumber { color: #64748b !important; }
-    .cm-error-line { background: rgba(244, 63, 94, 0.22) !important; }
+    .cm-error-line { background: rgba(244, 63, 94, 0.24) !important; }
     .cm-error-gutter { color: #fda4af !important; font-weight: 700 !important; }
 
     .code-fallback {
-      width: 100%;
-      height: 310px;
-      background: var(--bg-code);
-      border: none;
-      color: #f8fafc;
-      padding: 12px;
-      font-size: var(--text-sm);
-      line-height: 1.6;
-      resize: none;
-      outline: none;
+      width: 100%; height: 300px; background: var(--bg-code); border: none; color: #f8fafc;
+      padding: 12px; font-size: var(--text-sm); line-height: 1.6; resize: none; outline: none;
     }
 
-    .problem-textarea {
+    .problem-textarea, .input-ctrl, .sample-textarea {
       width: 100%;
       background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: 8px;
       color: var(--ink);
-      padding: 10px 12px;
+      padding: 9px 12px;
       font-family: inherit;
       font-size: var(--text-sm);
-      line-height: 1.55;
-      resize: vertical;
-      min-height: 68px;
+      line-height: 1.5;
       outline: none;
       transition: border-color 0.15s;
     }
-    .problem-textarea:focus { border-color: var(--accent); }
-
-    /* Verdict & Test Cases */
-    .verdict-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    .verdict-pills { display: inline-flex; gap: 5px; flex-wrap: wrap; }
-
-    .v-pill {
-      padding: 5px 10px;
-      border-radius: 7px;
-      border: 1px solid var(--border);
-      background: var(--bg-surface);
-      color: var(--ink-secondary);
-      font-size: var(--text-sm);
-      font-weight: 500;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.15s;
-    }
-    .v-pill:hover { border-color: var(--border-strong); color: var(--ink); }
-    .v-pill.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    .problem-textarea:focus, .input-ctrl:focus, .sample-textarea:focus { border-color: var(--accent); }
+    .problem-textarea { min-height: 70px; resize: vertical; }
+    .sample-textarea { min-height: 54px; resize: vertical; background: var(--bg-page); }
 
     details.test-panel {
-      margin-top: 12px;
+      margin-top: 10px;
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--bg-page);
     }
     details.test-panel summary {
-      padding: 9px 12px;
+      padding: 8px 12px;
       font-size: var(--text-sm);
       font-weight: 500;
       color: var(--ink-secondary);
       cursor: pointer;
       list-style: none;
       display: flex;
-      align-items: center;
       justify-content: space-between;
     }
-    details.test-panel summary:hover { color: var(--ink); }
-
-    .test-cases-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
-
-    .tc-item {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px;
-      background: var(--bg-surface);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .tc-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--text-sm); color: var(--ink-secondary); font-weight: 500; }
-    .tc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-    .sample-textarea {
-      width: 100%;
-      min-height: 56px;
-      background: var(--bg-page);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--ink);
-      padding: 8px;
-      font-size: var(--text-sm);
-      resize: vertical;
-      outline: none;
-    }
-    .sample-textarea:focus { border-color: var(--accent); }
+    .tc-grid { padding: 0 12px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
     .panel-footer {
-      padding: 14px 18px 18px;
+      padding: 14px 18px;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 10px;
@@ -421,7 +250,7 @@
     .btn-primary {
       height: 42px;
       background: var(--accent);
-      color: #ffffff;
+      color: #fff;
       border: none;
       border-radius: 8px;
       font-size: var(--text-body);
@@ -432,7 +261,6 @@
       align-items: center;
       justify-content: center;
       gap: 8px;
-      transition: background 0.15s, opacity 0.15s;
     }
     .btn-primary:hover { background: var(--accent-hover); }
     .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -448,22 +276,8 @@
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.15s;
     }
     .btn-run:hover { border-color: var(--ok); color: var(--ok); background: var(--ok-bg); }
-    .btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    .kbd-hint {
-      font-size: var(--text-sm);
-      padding: 1px 6px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.18);
-      font-weight: 500;
-    }
 
     /* Right Column */
     .report-col { display: flex; flex-direction: column; gap: 16px; }
@@ -472,25 +286,17 @@
       background: var(--bg-surface);
       border: 1px dashed var(--border-strong);
       border-radius: var(--radius);
-      padding: 48px 32px;
+      padding: 48px 28px;
       text-align: center;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
     }
-
-    .empty-icon {
-      width: 44px; height: 44px; border-radius: 10px;
-      background: var(--accent-soft); color: var(--accent);
-      display: flex; align-items: center; justify-content: center;
-    }
-
-    .empty-title { font-size: var(--text-heading); font-weight: 600; color: var(--ink); }
-    .empty-desc { font-size: var(--text-body); color: var(--ink-secondary); max-width: 48ch; line-height: 1.6; }
+    .empty-title { font-size: var(--text-heading); font-weight: 600; }
+    .empty-desc { font-size: var(--text-body); color: var(--ink-secondary); max-width: 44ch; }
     .quick-demos { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
 
-    /* Verdict Banner */
     .verdict {
       border-radius: var(--radius);
       padding: 18px 20px;
@@ -498,27 +304,16 @@
       background: var(--bg-surface);
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      gap: 10px;
     }
     .verdict.is-error { background: var(--err-bg); border-color: var(--err-border); }
     .verdict.is-clean { background: var(--ok-bg); border-color: var(--ok-border); }
-
     .verdict-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .verdict-badge { font-size: var(--text-sm); font-weight: 600; margin-bottom: 4px; }
+    .verdict-badge { font-size: var(--text-sm); font-weight: 600; margin-bottom: 3px; }
     .verdict.is-error .verdict-badge { color: var(--err); }
     .verdict.is-clean .verdict-badge { color: var(--ok); }
-    .verdict-title { font-size: var(--text-heading); font-weight: 700; line-height: 1.35; letter-spacing: -0.02em; color: var(--ink); }
+    .verdict-title { font-size: var(--text-heading); font-weight: 700; letter-spacing: -0.02em; }
 
-    .pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-    .pill { font-size: var(--text-sm); padding: 3px 10px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--ink-secondary); }
-    .pill strong { color: var(--ink); font-weight: 600; }
-
-    .exec-badge { font-size: var(--text-sm); font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); }
-    .exec-badge.ok { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
-    .exec-badge.fail { background: var(--err-bg); border-color: var(--err-border); color: var(--err); }
-
-    /* Cards */
     .card {
       background: var(--bg-surface);
       border: 1px solid var(--border);
@@ -529,13 +324,10 @@
       gap: 10px;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
-
     .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-    .card-title { font-size: var(--text-heading); font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; letter-spacing: -0.01em; }
-    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-title { font-size: var(--text-heading); font-weight: 600; color: var(--ink); }
     .line-tag { font-size: var(--text-sm); font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--err-bg); border: 1px solid var(--err-border); color: var(--err); }
     .card-text { font-size: var(--text-body); line-height: 1.6; color: var(--ink); white-space: pre-line; max-width: 65ch; }
-    .card-sub { font-size: var(--text-sm); line-height: 1.55; color: var(--ink-secondary); max-width: 65ch; }
 
     .snippet-box {
       background: var(--bg-code);
@@ -559,73 +351,25 @@
     }
 
     .diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .diff-pane {
-      background: var(--bg-page);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: var(--text-sm);
-      color: var(--ink);
-      white-space: pre-wrap;
-      overflow-x: auto;
-    }
-    .diff-label { font-size: var(--text-sm); color: var(--ink-muted); margin-bottom: 4px; font-weight: 600; }
+    .diff-pane { background: var(--bg-page); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: var(--text-sm); white-space: pre-wrap; overflow-x: auto; }
 
-    .socratic-box {
-      background: var(--ok-bg);
-      border: 1px solid var(--ok-border);
-      border-radius: 8px;
-      padding: 14px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    .socratic-box { background: var(--ok-bg); border: 1px solid var(--ok-border); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
     .socratic-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .socratic-label { font-size: var(--text-sm); font-weight: 600; color: var(--ok); }
     .socratic-text { font-size: var(--text-body); line-height: 1.6; color: #064e3b; max-width: 65ch; }
 
-    .btn-copy {
-      background: var(--bg-surface);
-      border: 1px solid var(--ok-border);
-      color: var(--ok);
-      font-size: var(--text-sm);
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    .btn-copy:hover { background: #d1fae5; }
+    .btn-copy { background: var(--bg-surface); border: 1px solid var(--ok-border); color: var(--ok); font-size: var(--text-sm); font-weight: 600; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; }
 
-    /* Chat */
-    .chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; }
+    .chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
     .chat-msg { padding: 10px 14px; border-radius: 8px; font-size: var(--text-sm); line-height: 1.55; white-space: pre-wrap; }
-    .chat-msg.user { background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--ink); align-self: flex-end; max-width: 85%; }
-    .chat-msg.bot { background: var(--bg-page); border: 1px solid var(--border); color: var(--ink); align-self: flex-start; max-width: 95%; }
+    .chat-msg.user { background: var(--accent-soft); align-self: flex-end; max-width: 85%; }
+    .chat-msg.bot { background: var(--bg-page); border: 1px solid var(--border); align-self: flex-start; max-width: 95%; }
     .chat-row { display: flex; gap: 8px; }
 
-    /* References & Feedback */
-    details.refs { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); }
-    details.refs summary { padding: 14px 18px; font-size: var(--text-sm); font-weight: 600; color: var(--ink-secondary); cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; }
-    details.refs summary:hover { color: var(--ink); }
-    .refs-grid { padding: 0 18px 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-    .ref-item { background: var(--bg-page); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-decoration: none; display: block; transition: border-color 0.15s; }
-    .ref-item:hover { border-color: var(--accent); }
-    .ref-src { font-size: var(--text-sm); font-weight: 600; color: var(--accent); margin-bottom: 3px; }
-    .ref-title { font-size: var(--text-sm); font-weight: 600; color: var(--ink); margin-bottom: 4px; }
-    .ref-desc { font-size: var(--text-sm); color: var(--ink-secondary); line-height: 1.45; }
-
-    .feedback-bar {
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-      padding: 12px 18px; background: var(--bg-surface); border: 1px solid var(--border);
-      border-radius: var(--radius); font-size: var(--text-sm); color: var(--ink-secondary);
-    }
-
-    .alert-inline {
-      background: var(--err-bg); border: 1px solid var(--err-border);
-      color: var(--err); font-size: var(--text-sm); font-weight: 500;
-      padding: 12px 16px; border-radius: 8px;
-    }
+    .alert-inline { background: var(--err-bg); border: 1px solid var(--err-border); color: var(--err); font-size: var(--text-sm); font-weight: 500; padding: 12px 16px; border-radius: 8px; }
+    .exec-badge { font-size: var(--text-sm); font-weight: 600; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); }
+    .exec-badge.ok { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
+    .exec-badge.fail { background: var(--err-bg); border-color: var(--err-border); color: var(--err); }
 
     body.student-mode .monitor-only { display: none !important; }
 
@@ -634,21 +378,29 @@
       .engine-status { display: none; }
       .topbar { padding: 0 16px; }
     }
-
     @media (max-width: 680px) {
       .topbar { height: auto; padding: 12px 14px; flex-wrap: wrap; gap: 10px; }
       .topbar-actions { width: 100%; flex-wrap: wrap; }
       .select-compact { max-width: 100%; flex: 1 1 130px; }
       .workspace { padding: 12px; gap: 16px; }
-      .drawer-row, .tc-grid, .diff-grid, .panel-footer { grid-template-columns: 1fr; }
-      .field-top { flex-wrap: wrap; }
-      .kbd-hint { display: none; }
+      .tc-grid, .diff-grid, .panel-footer { grid-template-columns: 1fr; }
       .CodeMirror { height: 240px !important; }
-      .verdict-top, .feedback-bar { flex-direction: column; align-items: flex-start; }
+      .verdict-top { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
+
+  <!-- Clean PIN Modal (only shown if MONITOR_ACCESS_PIN is configured) -->
+  <div id="pinOverlay" class="pin-overlay hidden">
+    <div class="pin-card">
+      <h2 style="font-size: var(--text-heading); font-weight: 700;">Acesso da Monitoria</h2>
+      <p style="font-size: var(--text-sm); color: var(--ink-secondary);">Digite o PIN dos instrutores para liberar a bancada.</p>
+      <input id="pinInput" type="password" class="input-ctrl" placeholder="PIN de acesso..." onkeydown="if(event.key==='Enter') submitPin()" />
+      <p id="pinError" class="hidden" style="font-size: var(--text-sm); color: var(--err); font-weight: 500;">PIN incorreto. Tente novamente.</p>
+      <button type="button" onclick="submitPin()" class="btn-primary">Entrar</button>
+    </div>
+  </div>
 
   <header class="topbar">
     <div class="brand">
@@ -656,286 +408,166 @@
         <span class="brand-dot"></span>
         Code Monitor
       </span>
-      <span id="engineStatusPill" class="engine-status">
-        <span class="status-led"></span>
-        <span id="engineStatusText">Carregando motor...</span>
-      </span>
+      <span id="engineStatusText" class="engine-status">Carregando...</span>
     </div>
 
     <div class="topbar-actions">
-      <select id="historySelect" class="select-compact hidden" onchange="loadFromHistory(this.value)" title="Histórico da sessão">
+      <select id="historySelect" class="select-compact hidden" onchange="loadFromHistory(this.value)">
         <option value="">Recentes...</option>
       </select>
-      <select id="demoSelect" class="select-compact" onchange="loadSelectedDemo(this.value)" title="Exemplos de aula">
+      <select id="demoSelect" class="select-compact" onchange="loadSelectedDemo(this.value)">
         <option value="">Exemplos...</option>
       </select>
-      <button type="button" onclick="toggleQuestionBank()" class="btn-ghost">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        <span>Questões</span>
-      </button>
     </div>
   </header>
 
   <main class="workspace">
-    <!-- LEFT: IDE Editor & Test Cases -->
+    <!-- LEFT: Simple 3-step input -->
     <section class="panel">
-      <div class="panel-header">
+      <div class="panel-toolbar">
         <div class="segmented" role="group" aria-label="Linguagem">
           <button type="button" onclick="setLang('cpp')" id="langBtn_cpp" class="seg-btn active">C++</button>
           <button type="button" onclick="setLang('c')" id="langBtn_c" class="seg-btn">C</button>
           <button type="button" onclick="setLang('python')" id="langBtn_python" class="seg-btn">Python</button>
         </div>
 
-        <button type="button" onclick="clearInputs()" class="btn-ghost" title="Limpar editor e testes">
-          Limpar
-        </button>
-      </div>
-
-      <!-- Problem Search & Custom Classroom Bank Drawer -->
-      <div id="questionBankDrawer" class="drawer">
-        <div class="drawer-row">
-          <input id="realProbSearchInput" type="text" oninput="searchRealProblems()" placeholder="Buscar questão Codeforces (ex: dijkstra, 315, dp)..." class="input-ctrl" />
-          <select id="realProbTagFilter" onchange="searchRealProblems()" class="input-ctrl">
-            <option value="all">Todos os tópicos</option>
-            <option value="graphs_bfs_dfs_dijkstra">Grafos / BFS / Dijkstra</option>
-            <option value="dynamic_programming">Programação dinâmica</option>
-            <option value="sorting_binary_search">Busca binária / Greedy</option>
-            <option value="prefix_sum_two_pointers">Two pointers / Prefixos</option>
-            <option value="data_structures_hash_segtree">Estruturas / SegTree</option>
-            <option value="math_ad_hoc">Matemática / Ad-Hoc</option>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <select id="verdictSelect" onchange="CURRENT_VERDICT = this.value" class="select-compact" style="height:32px;">
+            <option value="unknown">Veredito: Não sei</option>
+            <option value="WA">Veredito: WA (Resposta errada)</option>
+            <option value="TLE">Veredito: TLE (Tempo excedido)</option>
+            <option value="RTE">Veredito: RTE (Erro de execução)</option>
+            <option value="PE">Veredito: PE (Formatação)</option>
+            <option value="CE">Veredito: CE (Compilação)</option>
           </select>
-        </div>
-        <select id="realProbResultsSelect" onchange="selectRealProblemFromDropdown()" class="input-ctrl">
-          <option value="">Selecionar questão oficial...</option>
-        </select>
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding-top:6px; border-top:1px solid var(--border);">
-          <select id="customProbSelect" onchange="selectCustomProblem(this.value)" class="input-ctrl" style="flex:1;">
-            <option value="">Questões salvas da turma...</option>
-          </select>
-          <button type="button" onclick="saveCurrentAsCustomProblem()" class="btn-ghost" title="Salvar enunciado e teste atual no banco da turma">
-            + Salvar atual
-          </button>
+          <button type="button" onclick="clearInputs()" class="btn-ghost" style="height:32px;">Limpar</button>
         </div>
       </div>
 
-      <!-- Student Code Editor (CodeMirror IDE) -->
+      <!-- 1. Code Editor -->
       <div class="field-block">
         <div class="field-top">
-          <span class="field-label">
-            Código do aluno
-            <span id="lineCountHint" class="field-meta mono">1 linha</span>
-          </span>
+          <span class="field-label">1. Código do aluno</span>
           <div style="display:flex; align-items:center; gap:8px;">
             <span id="codeOcrStatus" class="field-meta mono"></span>
             <input id="codePhotosInput" type="file" accept="image/*" multiple class="hidden" onchange="uploadMultiplePhotos('code', this.files)" />
-            <button type="button" onclick="document.getElementById('codePhotosInput').click()" class="btn-upload" title="Enviar print ou usar Ctrl+V">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-              <span>Foto / Ctrl+V</span>
-            </button>
+            <button type="button" onclick="document.getElementById('codePhotosInput').click()" class="btn-ghost" style="height:28px; padding:0 10px;">Foto / Ctrl+V</button>
           </div>
         </div>
-        <div id="codePhotosStrip" class="photo-strip hidden"></div>
         <div id="cmHost" class="cm-host">
-          <textarea id="codeInput" spellcheck="false" class="code-fallback mono" placeholder="Cole o código em C++, C ou Python..."></textarea>
+          <textarea id="codeInput" spellcheck="false" class="code-fallback mono" placeholder="Cole o código do aluno aqui..."></textarea>
         </div>
       </div>
 
-      <!-- Problem Statement, URL Import, Verdict & Multi-Test Cases -->
+      <!-- 2. Problem / Link / Sample Test -->
       <div class="field-block no-border">
         <div class="field-top">
-          <span class="field-label">
-            Enunciado ou limites
-            <span class="field-meta">(NEPS, Beecrowd, Codeforces, AtCoder)</span>
-          </span>
+          <span class="field-label">2. Questão ou link <span class="field-meta" style="font-weight:400;">(opcional)</span></span>
           <div style="display:flex; align-items:center; gap:8px;">
             <span id="probOcrStatus" class="field-meta mono"></span>
             <input id="problemPhotosInput" type="file" accept="image/*" multiple class="hidden" onchange="uploadMultiplePhotos('problem', this.files)" />
-            <button type="button" onclick="document.getElementById('problemPhotosInput').click()" class="btn-upload" title="Enviar print ou usar Ctrl+V">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-              <span>Foto / Ctrl+V</span>
-            </button>
+            <button type="button" onclick="document.getElementById('problemPhotosInput').click()" class="btn-ghost" style="height:28px; padding:0 10px;">Foto / Ctrl+V</button>
           </div>
         </div>
-        <div id="problemPhotosStrip" class="photo-strip hidden"></div>
-        <div style="display:flex; gap:8px; margin-bottom:8px;">
-          <input
-            id="problemUrlInput"
-            type="url"
-            class="input-ctrl"
-            placeholder="Cole o link da questão (NEPS, Beecrowd, AtCoder, CSES, Codeforces)..."
-            onkeydown="if(event.key==='Enter'){ event.preventDefault(); fetchProblemFromUrl(); }"
-          />
-          <button type="button" id="fetchUrlBtn" onclick="fetchProblemFromUrl()" class="btn-ghost" style="white-space:nowrap;">
-            Importar link
-          </button>
-        </div>
-        <textarea id="problemInput" rows="2" class="problem-textarea" placeholder="Cole o enunciado (ou os limites e exemplos de entrada/saída)..."></textarea>
-
-        <div class="verdict-row">
-          <span class="field-meta">Veredito do juiz:</span>
-          <div class="verdict-pills" role="group" aria-label="Veredito">
-            <button type="button" onclick="setVerdict('unknown')" id="vBtn_unknown" class="v-pill active">Não sei</button>
-            <button type="button" onclick="setVerdict('WA')" id="vBtn_WA" class="v-pill">WA</button>
-            <button type="button" onclick="setVerdict('TLE')" id="vBtn_TLE" class="v-pill">TLE</button>
-            <button type="button" onclick="setVerdict('RTE')" id="vBtn_RTE" class="v-pill">RTE</button>
-            <button type="button" onclick="setVerdict('PE')" id="vBtn_PE" class="v-pill">PE</button>
-            <button type="button" onclick="setVerdict('CE')" id="vBtn_CE" class="v-pill">CE</button>
-          </div>
+        <textarea
+          id="problemInput"
+          rows="2"
+          oninput="onProblemInputChanged()"
+          class="problem-textarea"
+          placeholder="Cole o enunciado, os limites (N <= 10^5) ou o link (NEPS, Beecrowd, AtCoder, Codeforces)..."
+        ></textarea>
+        <div id="importLinkBar" class="hidden" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <span class="field-meta">Link detectado</span>
+          <button type="button" id="fetchUrlBtn" onclick="fetchProblemFromUrl()" class="btn-ghost" style="height:30px; color:var(--accent); border-color:var(--accent);">Importar enunciado do link</button>
         </div>
 
         <details id="testCasesDetails" class="test-panel">
           <summary>
-            <span>Casos de teste da bancada (<span id="tcCountLabel">1</span>)</span>
-            <span class="field-meta">executa no servidor</span>
+            <span>Testar com entrada e saída de exemplo</span>
+            <span class="field-meta">opcional</span>
           </summary>
-          <div class="test-cases-body">
-            <div id="testCasesList"></div>
-            <button type="button" onclick="addTestCaseRow()" class="btn-ghost" style="align-self:flex-start; height:32px;">
-              + Adicionar caso de teste
-            </button>
+          <div class="tc-grid">
+            <textarea id="sampleInputEl" class="sample-textarea mono" placeholder="Entrada..."></textarea>
+            <textarea id="expectedOutputEl" class="sample-textarea mono" placeholder="Saída esperada..."></textarea>
           </div>
         </details>
       </div>
 
       <div class="panel-footer">
-        <button id="diagnoseBtn" type="button" onclick="runDiagnosis(null)" class="btn-primary">
-          <span>Diagnosticar submissão</span>
-          <span class="kbd-hint mono">Ctrl+Enter</span>
-        </button>
-        <button id="runTestsBtn" type="button" onclick="runTestsOnly()" class="btn-run" title="Executar código nos casos de teste (Ctrl+Shift+Enter)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <span>Rodar testes</span>
-        </button>
+        <button id="diagnoseBtn" type="button" onclick="runDiagnosis(null)" class="btn-primary">Analisar código</button>
+        <button id="runTestsBtn" type="button" onclick="runTestsOnly()" class="btn-run">Rodar teste</button>
       </div>
     </section>
 
-    <!-- RIGHT: Diagnosis & Bench Tools -->
+    <!-- RIGHT: Clear Result -->
     <section class="report-col">
       <div id="errorAlert" class="alert-inline hidden"></div>
 
-      <!-- Empty State -->
       <div id="emptyState" class="empty-state">
-        <div class="empty-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>
-        </div>
-        <h2 class="empty-title">Bancada pronta para atendimento</h2>
+        <h2 class="empty-title">Pronto para analisar</h2>
         <p class="empty-desc">
-          Cole o código do aluno, importe o link da questão ou cole o enunciado e clique em <strong>Diagnosticar submissão</strong>.
+          Cole o código do aluno à esquerda (e a questão ou link, se tiver) e clique em <strong>Analisar código</strong>.
         </p>
         <div id="quickDemoPills" class="quick-demos"></div>
       </div>
 
-      <!-- Standalone Test Runner Output Card -->
       <div id="testResultsCard" class="card hidden">
         <div class="card-head">
-          <span class="card-title">
-            <span id="trDot" class="dot" style="background: var(--ok);"></span>
-            <span>Execução real (Sandbox)</span>
-          </span>
+          <span class="card-title">Resultado da execução</span>
           <span id="trSummaryBadge" class="exec-badge ok">—</span>
         </div>
-        <div id="trWarningsBox" class="snippet-box mono hidden" style="border-left-color: var(--warn); color: #fde68a;"></div>
+        <div id="trWarningsBox" class="snippet-box mono hidden"></div>
         <div id="trCasesContainer" style="display:flex; flex-direction:column; gap:8px;"></div>
       </div>
 
-      <!-- Full Diagnosis Results -->
       <div id="resultsContainer" class="report-col hidden">
         <div id="verdictBanner" class="verdict is-error">
           <div class="verdict-top">
             <div>
-              <div id="verdictOverline" class="verdict-badge">Bug detectado</div>
+              <div id="verdictOverline" class="verdict-badge">Bug encontrado</div>
               <h2 id="mainBugTitle" class="verdict-title">—</h2>
             </div>
-            <button type="button" id="studentModeBtn" onclick="toggleStudentMode()" class="btn-ghost" title="Oculta correções prontas para poder mostrar a tela direto ao aluno">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <button type="button" id="studentModeBtn" onclick="toggleStudentMode()" class="btn-ghost">
               <span id="studentModeLabel">Modo aluno (sem spoiler)</span>
             </button>
           </div>
-          <div class="pills mono monitor-only">
-            <span class="pill">Código: <strong id="pillCodeBigO">—</strong></span>
-            <span class="pill">Limite: <strong id="pillIdealBigO">—</strong></span>
-            <span class="pill" id="pillAlgo">—</span>
-            <span id="execStatusBadge" class="exec-badge hidden"></span>
-          </div>
         </div>
 
-        <!-- 1. Causa raiz -->
         <div class="card monitor-only">
           <div class="card-head">
-            <span class="card-title">
-              <span id="step1Dot" class="dot" style="background: var(--err);"></span>
-              <span id="step1Title">Causa raiz</span>
-            </span>
+            <span class="card-title" id="step1Title">O que foi encontrado</span>
             <span id="suspectLineBadge" class="line-tag mono hidden">Linha —</span>
           </div>
           <p id="outBugLocation" class="card-text">—</p>
           <div id="suspectCodeSnippetBox" class="snippet-box mono hidden"></div>
-          <p id="outStudentLogic" class="card-sub">—</p>
         </div>
 
-        <!-- 2. Contra-exemplo -->
         <div id="counterexampleCard" class="card">
           <div class="card-head">
-            <span class="card-title">
-              <span class="dot" style="background: var(--warn);"></span>
-              <span>Caso de teste para mostrar na bancada</span>
-            </span>
+            <span class="card-title">Caso de teste que quebra</span>
           </div>
           <div id="outCounterexample" class="ce-box mono">—</div>
         </div>
 
-        <!-- 3. Como orientar o aluno -->
         <div class="card">
           <div class="card-head monitor-only">
-            <span class="card-title">
-              <span class="dot" style="background: var(--ok);"></span>
-              <span>Como orientar o aluno</span>
-            </span>
+            <span class="card-title">Como corrigir</span>
           </div>
           <p id="outHowToFix" class="card-text monitor-only">—</p>
           <div class="socratic-box">
             <div class="socratic-head">
-              <span class="socratic-label">Pergunta socrática para o aluno</span>
+              <span class="socratic-label">Pergunta para fazer ao aluno</span>
               <button type="button" id="copyInsightBtn" onclick="copyInsight()" class="btn-copy">Copiar</button>
             </div>
             <p id="outMonitorTip" class="socratic-text">—</p>
           </div>
         </div>
 
-        <!-- 4. Chat socrático -->
         <div class="card monitor-only">
-          <div class="card-head">
-            <span class="card-title">
-              <span class="dot" style="background: var(--accent);"></span>
-              <span>Acompanhamento na bancada</span>
-            </span>
-            <div style="display:flex; gap:6px; flex-wrap:wrap;">
-              <button type="button" onclick="sendQuickChat('Gere uma dica mais simples para aluno iniciante')" class="v-pill">Mais simples</button>
-              <button type="button" onclick="sendQuickChat('Gere um contra-exemplo menor ainda')" class="v-pill">Caso menor</button>
-            </div>
-          </div>
           <div id="chatLog" class="chat-log hidden"></div>
           <div class="chat-row">
-            <input id="chatInput" type="text" class="input-ctrl" placeholder="Pergunte ao copiloto (ex: como explicar esse bug sem dar o código?)..." onkeydown="if(event.key==='Enter') sendChat()" />
-            <button type="button" onclick="sendChat()" class="btn-ghost" style="padding:0 16px;">Enviar</button>
-          </div>
-        </div>
-
-        <!-- Referências -->
-        <details id="refsDrawer" class="refs monitor-only">
-          <summary>
-            <span>Material de apoio relacionado</span>
-            <span class="field-meta">abrir</span>
-          </summary>
-          <div id="ragCardsContainer" class="refs-grid"></div>
-        </details>
-
-        <!-- Feedback -->
-        <div class="feedback-bar monitor-only">
-          <span id="feedbackPrompt">Este diagnóstico ajudou na bancada?</span>
-          <div style="display:flex; gap:6px;">
-            <button type="button" onclick="sendFeedback(true)" id="fbYesBtn" class="v-pill">Acertou</button>
-            <button type="button" onclick="sendFeedback(false)" id="fbNoBtn" class="v-pill">Errou</button>
+            <input id="chatInput" type="text" class="input-ctrl" placeholder="Pedir dica mais simples ou tirar dúvida..." onkeydown="if(event.key==='Enter') sendChat()" />
+            <button type="button" onclick="sendChat()" class="btn-ghost">Enviar</button>
           </div>
         </div>
       </div>
@@ -948,15 +580,11 @@
     let CM_EDITOR = null;
     let HIGHLIGHTED_LINE = null;
     let DEMOS = [];
-    let REAL_PROBLEMS_CACHE = [];
-    let CUSTOM_PROBLEMS_CACHE = [];
     let SESSION_HISTORY = [];
     let LAST_DIAGNOSIS = null;
     let HAS_UPLOADED_PROB_PHOTO = false;
     let HAS_UPLOADED_CODE_PHOTO = false;
-    let TC_COUNTER = 0;
 
-    // Automatically attach Monitor PIN (if configured) to all /api/* requests
     const _origFetch = window.fetch.bind(window);
     window.fetch = async (input, init = {}) => {
       const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -970,23 +598,24 @@
       }
       const res = await _origFetch(input, init);
       if (res.status === 401 && url.startsWith('/api/') && url !== '/api/auth/verify') {
-        await promptForMonitorPin();
+        document.getElementById('pinOverlay').classList.remove('hidden');
       }
       return res;
     };
 
-    async function promptForMonitorPin() {
-      const entered = prompt('Acesso restrito aos monitores. Digite o PIN de acesso:');
-      if (!entered) return;
+    async function submitPin() {
+      const val = (document.getElementById('pinInput').value || '').trim();
+      if (!val) return;
       const res = await _origFetch('/api/auth/verify', {
         method: 'POST',
-        headers: { 'X-Monitor-Pin': entered.trim() }
+        headers: { 'X-Monitor-Pin': val }
       });
       if (res.ok) {
-        localStorage.setItem('monitor_pin', entered.trim());
-        location.reload();
+        localStorage.setItem('monitor_pin', val);
+        document.getElementById('pinError').classList.add('hidden');
+        document.getElementById('pinOverlay').classList.add('hidden');
       } else {
-        alert('PIN incorreto.');
+        document.getElementById('pinError').classList.remove('hidden');
       }
     }
 
@@ -995,17 +624,8 @@
     }
 
     function setCodeValue(val) {
-      if (CM_EDITOR) {
-        CM_EDITOR.setValue(val || '');
-      } else {
-        document.getElementById('codeInput').value = val || '';
-      }
-      updateLineCount();
-    }
-
-    function updateLineCount() {
-      const count = Math.max(getCodeValue().split('\n').length, 1);
-      document.getElementById('lineCountHint').textContent = count + (count === 1 ? ' linha' : ' linhas');
+      if (CM_EDITOR) CM_EDITOR.setValue(val || '');
+      else document.getElementById('codeInput').value = val || '';
     }
 
     function highlightErrorLine(lineNum) {
@@ -1026,23 +646,18 @@
 
     function initCodeMirror() {
       if (typeof CodeMirror === 'undefined') return;
-      const ta = document.getElementById('codeInput');
-      CM_EDITOR = CodeMirror.fromTextArea(ta, {
+      CM_EDITOR = CodeMirror.fromTextArea(document.getElementById('codeInput'), {
         mode: 'text/x-c++src',
         theme: 'material-darker',
         lineNumbers: true,
         indentUnit: 2,
         tabSize: 2,
         indentWithTabs: false,
-        lineWrapping: false,
         extraKeys: {
           'Ctrl-Enter': () => runDiagnosis(null),
-          'Cmd-Enter': () => runDiagnosis(null),
-          'Ctrl-Shift-Enter': () => runTestsOnly(),
-          'Cmd-Shift-Enter': () => runTestsOnly()
+          'Cmd-Enter': () => runDiagnosis(null)
         }
       });
-      CM_EDITOR.on('change', () => updateLineCount());
       CM_EDITOR.getWrapperElement().addEventListener('paste', (e) => handleImagePasteEvent(e, 'code'));
     }
 
@@ -1057,89 +672,27 @@
       }
     }
 
-    function setVerdict(v) {
-      CURRENT_VERDICT = v;
-      ['unknown', 'WA', 'TLE', 'RTE', 'PE', 'CE'].forEach(item => {
-        const el = document.getElementById('vBtn_' + item);
-        if (el) el.classList.toggle('active', item === v);
-      });
-    }
-
     function toggleStudentMode() {
       const active = document.body.classList.toggle('student-mode');
-      const btn = document.getElementById('studentModeBtn');
-      btn.classList.toggle('active-toggle', active);
+      document.getElementById('studentModeBtn').classList.toggle('active-toggle', active);
       document.getElementById('studentModeLabel').textContent = active ? 'Voltar ao modo monitor' : 'Modo aluno (sem spoiler)';
     }
 
-    function toggleQuestionBank() {
-      document.getElementById('questionBankDrawer').classList.toggle('open');
-    }
-
-    function addTestCaseRow(inp = '', exp = '') {
-      TC_COUNTER++;
-      const list = document.getElementById('testCasesList');
-      const idx = list.children.length + 1;
-      const div = document.createElement('div');
-      div.className = 'tc-item';
-      div.dataset.tcId = String(TC_COUNTER);
-      div.innerHTML = `
-        <div class="tc-head">
-          <span class="tc-name">Caso ${idx}</span>
-          <button type="button" onclick="removeTestCaseRow(this)" class="v-pill" style="padding:3px 8px;">Remover</button>
-        </div>
-        <div class="tc-grid">
-          <textarea class="sample-textarea mono tc-in" placeholder="Entrada...">${inp}</textarea>
-          <textarea class="sample-textarea mono tc-out" placeholder="Saída esperada...">${exp}</textarea>
-        </div>
-      `;
-      list.appendChild(div);
-      refreshTestCaseCount();
-    }
-
-    function removeTestCaseRow(btn) {
-      const list = document.getElementById('testCasesList');
-      if (list.children.length <= 1) {
-        const item = btn.closest('.tc-item');
-        item.querySelector('.tc-in').value = '';
-        item.querySelector('.tc-out').value = '';
-        return;
-      }
-      btn.closest('.tc-item').remove();
-      Array.from(list.children).forEach((el, i) => {
-        el.querySelector('.tc-name').textContent = `Caso ${i + 1}`;
-      });
-      refreshTestCaseCount();
-    }
-
-    function refreshTestCaseCount() {
-      const count = document.getElementById('testCasesList').children.length;
-      document.getElementById('tcCountLabel').textContent = String(count);
-    }
-
-    function collectTestCases() {
-      const rows = document.querySelectorAll('#testCasesList .tc-item');
-      const cases = [];
-      rows.forEach((row, i) => {
-        const inp = row.querySelector('.tc-in').value;
-        const exp = row.querySelector('.tc-out').value;
-        if (inp.trim() || exp.trim()) {
-          cases.push({ name: `Caso ${i + 1}`, sample_input: inp, expected_output: exp });
-        }
-      });
-      return cases;
+    function onProblemInputChanged() {
+      const val = (document.getElementById('problemInput').value || '').trim();
+      const isUrl = /^https?:\/\/\S+$/i.test(val);
+      document.getElementById('importLinkBar').classList.toggle('hidden', !isUrl);
     }
 
     async function fetchProblemFromUrl() {
-      const urlEl = document.getElementById('problemUrlInput');
+      const rawUrl = (document.getElementById('problemInput').value || '').trim();
       const statusEl = document.getElementById('probOcrStatus');
       const btn = document.getElementById('fetchUrlBtn');
-      const rawUrl = (urlEl.value || '').trim();
-      if (!rawUrl) { showError('Cole o link da questão antes de importar.'); return; }
+      if (!rawUrl) return;
       showError('');
       btn.disabled = true;
       btn.textContent = 'Importando...';
-      statusEl.textContent = 'Buscando enunciado...';
+      statusEl.textContent = 'Buscando...';
       try {
         const res = await fetch('/api/problems/fetch-url', {
           method: 'POST',
@@ -1149,24 +702,23 @@
         const data = await res.json();
         if (!res.ok || !data.ok) {
           statusEl.textContent = '';
-          showError(data.message || data.detail || 'Não foi possível importar o enunciado deste link.');
+          showError(data.message || data.detail || 'Não foi possível importar este link.');
           return;
         }
         document.getElementById('problemInput').value = data.statement || '';
+        document.getElementById('importLinkBar').classList.add('hidden');
         if (data.test_cases && data.test_cases.length > 0) {
-          document.getElementById('testCasesList').innerHTML = '';
-          data.test_cases.forEach(tc => addTestCaseRow(tc.sample_input, tc.expected_output));
+          document.getElementById('sampleInputEl').value = data.test_cases[0].sample_input || '';
+          document.getElementById('expectedOutputEl').value = data.test_cases[0].expected_output || '';
           document.getElementById('testCasesDetails').open = true;
         }
-        const nCases = (data.test_cases || []).length;
-        statusEl.textContent = `${data.platform} • ${nCases} exemplo(s)`;
+        statusEl.textContent = `${data.platform} importado`;
       } catch (e) {
-        console.error(e);
         statusEl.textContent = '';
         showError('Erro de conexão ao importar o link.');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Importar link';
+        btn.textContent = 'Importar enunciado do link';
       }
     }
 
@@ -1174,15 +726,12 @@
       setCodeValue('');
       highlightErrorLine(null);
       document.getElementById('problemInput').value = '';
-      document.getElementById('problemUrlInput').value = '';
+      document.getElementById('importLinkBar').classList.add('hidden');
+      document.getElementById('sampleInputEl').value = '';
+      document.getElementById('expectedOutputEl').value = '';
       document.getElementById('demoSelect').value = '';
-      document.getElementById('testCasesList').innerHTML = '';
-      addTestCaseRow();
-      setVerdict('unknown');
-      document.getElementById('problemPhotosStrip').innerHTML = '';
-      document.getElementById('problemPhotosStrip').classList.add('hidden');
-      document.getElementById('codePhotosStrip').innerHTML = '';
-      document.getElementById('codePhotosStrip').classList.add('hidden');
+      document.getElementById('verdictSelect').value = 'unknown';
+      CURRENT_VERDICT = 'unknown';
       document.getElementById('probOcrStatus').textContent = '';
       document.getElementById('codeOcrStatus').textContent = '';
       document.getElementById('errorAlert').classList.add('hidden');
@@ -1222,56 +771,35 @@
       showError('');
       const isCode = mode === 'code';
       const statusEl = document.getElementById(isCode ? 'codeOcrStatus' : 'probOcrStatus');
-      const stripEl = document.getElementById(isCode ? 'codePhotosStrip' : 'problemPhotosStrip');
       const inputEl = document.getElementById(isCode ? 'codePhotosInput' : 'problemPhotosInput');
-
       const alreadyHasPhoto = isCode ? HAS_UPLOADED_CODE_PHOTO : HAS_UPLOADED_PROB_PHOTO;
       let existingPhotoText = '';
       if (!alreadyHasPhoto) {
         if (isCode) setCodeValue(''); else document.getElementById('problemInput').value = '';
-        stripEl.innerHTML = '';
         if (isCode) HAS_UPLOADED_CODE_PHOTO = true; else HAS_UPLOADED_PROB_PHOTO = true;
       } else {
         existingPhotoText = (isCode ? getCodeValue() : document.getElementById('problemInput').value).trim();
       }
-      stripEl.classList.remove('hidden');
-
-      Array.from(fileList).forEach((file) => {
-        const chip = document.createElement('div');
-        chip.className = 'photo-chip';
-        const url = URL.createObjectURL(file);
-        const label = (file.name && file.name !== 'image.png') ? file.name.slice(0, 14) : `Print ${stripEl.children.length + 1}`;
-        chip.innerHTML = `<img src="${url}" alt="foto"/><span>${label}</span>`;
-        stripEl.appendChild(chip);
-      });
-
-      statusEl.textContent = 'Lendo imagem...';
+      statusEl.textContent = 'Lendo foto...';
       const formData = new FormData();
       formData.append('mode', mode);
       formData.append('existing_text', existingPhotoText);
       Array.from(fileList).forEach(f => formData.append('files', f));
-
       try {
         const res = await fetch('/api/ocr', { method: 'POST', body: formData });
         const data = await res.json();
-        if (!res.ok) {
-          statusEl.textContent = '';
-          showError(data.detail || 'Não foi possível extrair texto da imagem.');
-          return;
-        }
+        if (!res.ok) { statusEl.textContent = ''; showError(data.detail || 'Não foi possível ler a imagem.'); return; }
         if (data.extracted_text) {
           if (isCode) setCodeValue(data.extracted_text);
-          else document.getElementById('problemInput').value = data.extracted_text;
-          const confPct = ((data.confidence || 0.95) * 100).toFixed(0);
-          statusEl.textContent = `${stripEl.children.length} foto(s) • ${confPct}%`;
+          else { document.getElementById('problemInput').value = data.extracted_text; onProblemInputChanged(); }
+          statusEl.textContent = 'Foto lida';
           if (getCodeValue().trim()) runDiagnosis(null);
         } else {
-          statusEl.textContent = 'Texto já incluído.';
+          statusEl.textContent = '';
         }
       } catch (err) {
-        console.error(err);
         statusEl.textContent = '';
-        showError('Erro de conexão ao processar imagem.');
+        showError('Erro de conexão ao ler imagem.');
       } finally {
         inputEl.value = '';
       }
@@ -1281,29 +809,27 @@
       return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function collectTestCases() {
+      const inp = document.getElementById('sampleInputEl').value;
+      const exp = document.getElementById('expectedOutputEl').value;
+      if (inp.trim() || exp.trim()) return [{ name: 'Exemplo 1', sample_input: inp, expected_output: exp }];
+      return [];
+    }
+
     function renderTestRunnerResults(ex) {
       const card = document.getElementById('testResultsCard');
-      if (!ex || !ex.ran) {
-        card.classList.add('hidden');
-        return;
-      }
+      if (!ex || !ex.ran) { card.classList.add('hidden'); return; }
       document.getElementById('emptyState').classList.add('hidden');
       card.classList.remove('hidden');
 
-      const passed = (ex.cases || []).filter(c => c.status === 'ac_sample').length;
-      const total = (ex.cases || []).length || 1;
       const badge = document.getElementById('trSummaryBadge');
-      const dot = document.getElementById('trDot');
       const allOk = ex.status === 'ac_sample';
       badge.className = 'exec-badge ' + (allOk ? 'ok' : 'fail');
-      badge.textContent = allOk
-        ? `${passed}/${total} passou (${ex.runtime_ms} ms)`
-        : `${ex.status.toUpperCase()} (${passed}/${total} passou)`;
-      dot.style.background = allOk ? 'var(--ok)' : 'var(--err)';
+      badge.textContent = allOk ? `Passou (${ex.runtime_ms} ms)` : `${ex.status.toUpperCase()} (${ex.runtime_ms} ms)`;
 
       const warnBox = document.getElementById('trWarningsBox');
       if (ex.compiler_warnings && ex.compiler_warnings.length > 0) {
-        warnBox.textContent = 'Avisos do compilador (-Wall):\n' + ex.compiler_warnings.join('\n');
+        warnBox.textContent = 'Avisos do compilador:\n' + ex.compiler_warnings.join('\n');
         warnBox.classList.remove('hidden');
       } else {
         warnBox.classList.add('hidden');
@@ -1312,40 +838,29 @@
       const container = document.getElementById('trCasesContainer');
       container.innerHTML = '';
       (ex.cases || []).forEach(c => {
-        const ok = c.status === 'ac_sample';
         const div = document.createElement('div');
-        div.style.cssText = 'border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg-page);';
-        let bodyHtml = '';
         if (c.status === 'ce' || c.status === 'rte' || c.status === 'tle') {
-          bodyHtml = `<div class="mono" style="font-size:var(--text-sm); color:var(--err); white-space:pre-wrap; margin-top:6px;">${escapeHtml(c.sanitizer_issue ? c.sanitizer_issue + '\n' : '')}${escapeHtml(c.stderr)}</div>`;
+          div.innerHTML = `<div class="mono" style="font-size:var(--text-sm); color:var(--err); white-space:pre-wrap;">${escapeHtml(c.sanitizer_issue ? c.sanitizer_issue + '\n' : '')}${escapeHtml(c.stderr)}</div>`;
         } else {
-          bodyHtml = `
-            <div class="diff-grid" style="margin-top:8px;">
-              <div class="diff-pane mono"><div class="diff-label">Saída do aluno</div>${escapeHtml(c.actual_output || '(vazio)')}</div>
-              <div class="diff-pane mono"><div class="diff-label">Saída esperada</div>${escapeHtml(c.expected_output || '(não informada)')}</div>
+          div.innerHTML = `
+            <div class="diff-grid">
+              <div class="diff-pane mono"><strong>Saída do aluno</strong>\n${escapeHtml(c.actual_output || '(vazio)')}</div>
+              <div class="diff-pane mono"><strong>Saída esperada</strong>\n${escapeHtml(c.expected_output || '(não informada)')}</div>
             </div>
           `;
         }
-        div.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:var(--text-sm); font-weight:600;">${escapeHtml(c.name)}</span>
-            <span class="exec-badge ${ok ? 'ok' : 'fail'} mono">${c.status.toUpperCase()} • ${c.runtime_ms} ms</span>
-          </div>
-          ${bodyHtml}
-        `;
         container.appendChild(div);
       });
-
       if (ex.error_line) highlightErrorLine(ex.error_line);
     }
 
     async function runTestsOnly() {
       const code = getCodeValue();
-      if (!code.trim()) { showError('Cole o código do aluno antes de rodar os testes.'); return; }
+      if (!code.trim()) { showError('Cole o código do aluno antes de rodar o teste.'); return; }
       const cases = collectTestCases();
       if (cases.length === 0) {
         document.getElementById('testCasesDetails').open = true;
-        showError('Preencha pelo menos uma entrada de teste abaixo para executar o código.');
+        showError('Preencha a entrada de exemplo abaixo para rodar o teste.');
         return;
       }
       showError('');
@@ -1358,11 +873,10 @@
           body: JSON.stringify({ language: CURRENT_LANG, code, test_cases: cases })
         });
         const data = await res.json();
-        if (!res.ok) { showError(data.detail || 'Erro ao executar testes.'); return; }
+        if (!res.ok) { showError(data.detail || 'Erro ao executar.'); return; }
         renderTestRunnerResults(data);
       } catch (e) {
-        console.error(e);
-        showError('Erro de conexão ao executar os testes.');
+        showError('Erro de conexão ao executar o teste.');
       } finally {
         btn.disabled = false;
       }
@@ -1370,15 +884,13 @@
 
     async function runDiagnosis(demoId) {
       const code = getCodeValue();
-      if (!code.trim()) { showError('Cole o código do aluno antes de diagnosticar.'); return; }
+      if (!code.trim()) { showError('Cole o código do aluno antes de analisar.'); return; }
       showError('');
 
       const btn = document.getElementById('diagnoseBtn');
-      const prevHtml = btn.innerHTML;
       btn.disabled = true;
-      btn.textContent = 'Diagnosticando...';
+      btn.textContent = 'Analisando...';
 
-      const cases = collectTestCases();
       try {
         const res = await fetch('/api/diagnose', {
           method: 'POST',
@@ -1388,22 +900,21 @@
             problem_statement: document.getElementById('problemInput').value,
             code: code,
             verdict: CURRENT_VERDICT,
-            test_cases: cases,
+            test_cases: collectTestCases(),
             demo_id: demoId,
             source_filter: 'all'
           })
         });
         const data = await res.json();
-        if (!res.ok) { showError(data.detail || 'Erro ao analisar a submissão.'); return; }
+        if (!res.ok) { showError(data.detail || 'Erro ao analisar.'); return; }
         LAST_DIAGNOSIS = data;
         saveToHistory(data, code, document.getElementById('problemInput').value);
         renderDiagnosis(data, code);
       } catch (err) {
-        console.error(err);
         showError('Erro de conexão com o servidor.');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = prevHtml;
+        btn.textContent = 'Analisar código';
       }
     }
 
@@ -1413,50 +924,21 @@
       document.getElementById('chatLog').innerHTML = '';
       document.getElementById('chatLog').classList.add('hidden');
 
-      if (data.execution_result && data.execution_result.ran) {
-        renderTestRunnerResults(data.execution_result);
-      } else {
-        document.getElementById('testResultsCard').classList.add('hidden');
-      }
+      if (data.execution_result && data.execution_result.ran) renderTestRunnerResults(data.execution_result);
+      else document.getElementById('testResultsCard').classList.add('hidden');
 
       const isClean = data.predicted_bug_class === 'clean_or_minor_logic' && !data.is_compile_error;
       const banner = document.getElementById('verdictBanner');
-      const step1Dot = document.getElementById('step1Dot');
-      const step1Title = document.getElementById('step1Title');
-
       if (isClean) {
         banner.className = 'verdict is-clean';
-        document.getElementById('verdictOverline').textContent = 'Verificação estrutural OK';
-        step1Dot.style.background = 'var(--ok)';
-        step1Title.textContent = 'O que foi verificado';
+        document.getElementById('verdictOverline').textContent = 'Nenhum erro estrutural detectado';
       } else {
         banner.className = 'verdict is-error';
-        document.getElementById('verdictOverline').textContent = data.is_compile_error
-          ? 'Erro de compilação / sintaxe'
-          : (data.source === 'free_llm' ? 'Diagnóstico IA + Sandbox' : 'Bug detectado');
-        step1Dot.style.background = 'var(--err)';
-        step1Title.textContent = 'Causa raiz';
+        document.getElementById('verdictOverline').textContent = data.is_compile_error ? 'Erro de compilação / sintaxe' : 'Bug detectado';
       }
 
       document.getElementById('mainBugTitle').textContent = data.predicted_bug_label || data.predicted_bug_class;
-
-      const pc = data.problem_constraints || {};
-      document.getElementById('pillCodeBigO').textContent = data.static_report.estimated_big_o;
-      document.getElementById('pillIdealBigO').textContent = pc.expected_max_complexity || 'O(N)';
-      document.getElementById('pillAlgo').textContent = pc.predicted_algo_label || 'Algoritmos';
-
-      const execBadge = document.getElementById('execStatusBadge');
-      const ex = data.execution_result;
-      if (ex && ex.ran) {
-        execBadge.textContent = ex.status === 'ac_sample' ? `Exemplo OK (${ex.runtime_ms} ms)` : `Execução: ${ex.status.toUpperCase()}`;
-        execBadge.className = 'exec-badge ' + (ex.status === 'ac_sample' ? 'ok' : 'fail');
-        execBadge.classList.remove('hidden');
-      } else {
-        execBadge.classList.add('hidden');
-      }
-
       document.getElementById('outBugLocation').textContent = data.bug_location;
-      document.getElementById('outStudentLogic').textContent = data.student_logic;
 
       const lineBadge = document.getElementById('suspectLineBadge');
       const snippetBox = document.getElementById('suspectCodeSnippetBox');
@@ -1469,9 +951,7 @@
         if (lines[idx] !== undefined) {
           snippetBox.innerHTML = `<span class="mono">${data.suspect_line}: ${escapeHtml(lines[idx].trim())}</span>`;
           snippetBox.classList.remove('hidden');
-        } else {
-          snippetBox.classList.add('hidden');
-        }
+        } else snippetBox.classList.add('hidden');
       } else {
         highlightErrorLine(null);
         lineBadge.classList.add('hidden');
@@ -1479,48 +959,14 @@
       }
 
       const ceCard = document.getElementById('counterexampleCard');
-      if (data.is_compile_error) {
-        ceCard.classList.add('hidden');
-      } else {
+      if (data.is_compile_error) ceCard.classList.add('hidden');
+      else {
         ceCard.classList.remove('hidden');
         document.getElementById('outCounterexample').textContent = data.counterexample;
       }
 
-      document.getElementById('outHowToFix').textContent =
-        data.how_to_fix || 'Revise a lógica na linha indicada respeitando os limites do enunciado.';
+      document.getElementById('outHowToFix').textContent = data.how_to_fix || 'Revise a linha indicada.';
       document.getElementById('outMonitorTip').textContent = data.monitor_tip;
-
-      document.getElementById('feedbackPrompt').textContent = 'Este diagnóstico ajudou na bancada?';
-      document.getElementById('fbYesBtn').disabled = false;
-      document.getElementById('fbNoBtn').disabled = false;
-
-      const ragContainer = document.getElementById('ragCardsContainer');
-      const refsDrawer = document.getElementById('refsDrawer');
-      ragContainer.innerHTML = '';
-      const refs = data.rag_references || [];
-      if (refs.length === 0) {
-        refsDrawer.classList.add('hidden');
-      } else {
-        refsDrawer.classList.remove('hidden');
-        refs.forEach(r => {
-          const card = document.createElement('a');
-          card.href = r.url;
-          card.target = '_blank';
-          card.rel = 'noopener';
-          card.className = 'ref-item';
-          card.innerHTML = `
-            <div class="ref-src">${escapeHtml(r.source)}</div>
-            <div class="ref-title">${escapeHtml(r.title)}</div>
-            <div class="ref-desc">${escapeHtml(r.common_mistakes)}</div>
-          `;
-          ragContainer.appendChild(card);
-        });
-      }
-    }
-
-    function sendQuickChat(prompt) {
-      document.getElementById('chatInput').value = prompt;
-      sendChat();
     }
 
     async function sendChat() {
@@ -1557,7 +1003,7 @@
         const data = await res.json();
         bMsg.textContent = data.reply || 'Sem resposta.';
       } catch (e) {
-        bMsg.textContent = 'Erro de conexão ao enviar mensagem.';
+        bMsg.textContent = 'Erro de conexão.';
       }
       log.scrollTop = log.scrollHeight;
     }
@@ -1590,110 +1036,12 @@
       if (idx === '' || !SESSION_HISTORY[idx]) return;
       const h = SESSION_HISTORY[idx];
       setLang(h.lang);
-      setVerdict(h.verdict);
+      CURRENT_VERDICT = h.verdict;
+      document.getElementById('verdictSelect').value = h.verdict;
       setCodeValue(h.code);
       document.getElementById('problemInput').value = h.problem;
       renderDiagnosis(h.data, h.code);
       document.getElementById('historySelect').value = '';
-    }
-
-    async function sendFeedback(helped) {
-      if (!LAST_DIAGNOSIS) return;
-      document.getElementById('fbYesBtn').disabled = true;
-      document.getElementById('fbNoBtn').disabled = true;
-      try {
-        await fetch('/api/feedback', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            language: CURRENT_LANG,
-            problem_statement: document.getElementById('problemInput').value,
-            code: getCodeValue(),
-            bug_class: LAST_DIAGNOSIS.predicted_bug_class || 'clean_or_minor_logic',
-            algo_family: (LAST_DIAGNOSIS.problem_constraints || {}).predicted_algo_family || 'math_ad_hoc',
-            monitor_notes: helped ? 'monitor_confirmed_helpful' : 'monitor_marked_inaccurate'
-          })
-        });
-        document.getElementById('feedbackPrompt').textContent = helped ? 'Registrado como útil!' : 'Salvo para melhoria!';
-      } catch (e) {
-        document.getElementById('feedbackPrompt').textContent = 'Erro ao enviar feedback.';
-      }
-    }
-
-    async function searchRealProblems() {
-      const q = document.getElementById('realProbSearchInput').value;
-      const tag = document.getElementById('realProbTagFilter').value;
-      try {
-        const res = await fetch(`/api/problems/search?q=${encodeURIComponent(q)}&tag=${encodeURIComponent(tag)}&limit=25`);
-        const data = await res.json();
-        REAL_PROBLEMS_CACHE = data.problems || [];
-        const sel = document.getElementById('realProbResultsSelect');
-        sel.innerHTML = `<option value="">Selecionar entre ${REAL_PROBLEMS_CACHE.length} questões Codeforces...</option>`;
-        REAL_PROBLEMS_CACHE.forEach((p, idx) => {
-          const opt = document.createElement('option');
-          opt.value = idx;
-          opt.textContent = `[CF-${p.contest_id}] ${p.name} — N <= ${(p.max_n || 1000).toLocaleString()}`;
-          sel.appendChild(opt);
-        });
-      } catch (e) { console.error(e); }
-    }
-
-    function selectRealProblemFromDropdown() {
-      const idx = document.getElementById('realProbResultsSelect').value;
-      if (idx === '' || !REAL_PROBLEMS_CACHE[idx]) return;
-      document.getElementById('problemInput').value = REAL_PROBLEMS_CACHE[idx].statement;
-      document.getElementById('questionBankDrawer').classList.remove('open');
-    }
-
-    async function loadCustomProblems() {
-      try {
-        const res = await fetch('/api/problems/custom');
-        const data = await res.json();
-        CUSTOM_PROBLEMS_CACHE = data.problems || [];
-        const sel = document.getElementById('customProbSelect');
-        sel.innerHTML = `<option value="">Questões da turma (${CUSTOM_PROBLEMS_CACHE.length})...</option>`;
-        CUSTOM_PROBLEMS_CACHE.forEach((p, i) => {
-          const opt = document.createElement('option');
-          opt.value = i;
-          opt.textContent = `[${p.platform}] ${p.title}`;
-          sel.appendChild(opt);
-        });
-      } catch (e) { console.error(e); }
-    }
-
-    function selectCustomProblem(idx) {
-      if (idx === '' || !CUSTOM_PROBLEMS_CACHE[idx]) return;
-      const p = CUSTOM_PROBLEMS_CACHE[idx];
-      document.getElementById('problemInput').value = p.statement;
-      if (p.sample_input || p.expected_output) {
-        document.getElementById('testCasesList').innerHTML = '';
-        addTestCaseRow(p.sample_input, p.expected_output);
-        document.getElementById('testCasesDetails').open = true;
-      }
-      document.getElementById('questionBankDrawer').classList.remove('open');
-    }
-
-    async function saveCurrentAsCustomProblem() {
-      const stmt = document.getElementById('problemInput').value.trim();
-      if (stmt.length < 5) { showError('Preencha o enunciado antes de salvar no banco da turma.'); return; }
-      const title = prompt('Nome da questão (ex: NEPS 123 - Soma das Casas):');
-      if (!title || !title.trim()) return;
-      const cases = collectTestCases();
-      const first = cases[0] || { sample_input: '', expected_output: '' };
-      try {
-        await fetch('/api/problems/custom', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform: 'Aula / Turma',
-            title: title.trim(),
-            statement: stmt,
-            sample_input: first.sample_input,
-            expected_output: first.expected_output
-          })
-        });
-        loadCustomProblems();
-      } catch (e) { showError('Erro ao salvar questão.'); }
     }
 
     function loadSelectedDemo(demoId) {
@@ -1702,6 +1050,7 @@
       if (!d) return;
       setLang(d.language);
       document.getElementById('problemInput').value = d.problem_statement;
+      onProblemInputChanged();
       setCodeValue(d.code);
       document.getElementById('demoSelect').value = d.id;
       runDiagnosis(d.id);
@@ -1709,7 +1058,6 @@
 
     async function initApp() {
       initCodeMirror();
-      addTestCaseRow();
       document.getElementById('problemInput').addEventListener('paste', (e) => handleImagePasteEvent(e, 'problem'));
 
       try {
@@ -1718,14 +1066,13 @@
         DEMOS = await demosRes.json();
 
         if (health.pin_required && !localStorage.getItem('monitor_pin')) {
-          await promptForMonitorPin();
+          document.getElementById('pinOverlay').classList.remove('hidden');
         }
 
-        const compTxt = health.compiler_available ? 'g++ ativo' : 'Python sandbox';
         const aiTxt = health.ai_provider && health.ai_provider !== 'local_sandbox_ml'
           ? `IA (${health.ai_provider.split(':')[0]})`
           : 'Motor local';
-        document.getElementById('engineStatusText').textContent = `${compTxt} • ${aiTxt}`;
+        document.getElementById('engineStatusText').textContent = `${health.compiler_available ? 'g++' : 'Python'} • ${aiTxt}`;
 
         const sel = document.getElementById('demoSelect');
         const quickBox = document.getElementById('quickDemoPills');
@@ -1744,9 +1091,6 @@
             quickBox.appendChild(btn);
           }
         });
-
-        searchRealProblems();
-        loadCustomProblems();
       } catch (err) {
         console.error(err);
       }

@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import threading
 from pathlib import Path
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.rag_retriever import RAGReference
 from src.sandbox_runner import SandboxResult
@@ -33,6 +34,28 @@ class FreeAIDiagnosis(BaseModel):
     counterexample: str = Field(..., description="Menor caso de teste que quebra o código (Entrada / Saída do Aluno / Esperada)")
     how_to_fix: str = Field(..., description="Orientação técnica direta para o instrutor/monitor")
     monitor_tip: str = Field(..., description="Pergunta socrática curta para destravar o aluno sem entregar código pronto")
+
+    @field_validator("predicted_bug_label", "student_logic", "bug_location", "counterexample", "how_to_fix", "monitor_tip", mode="before")
+    @classmethod
+    def _coerce_str(cls, v: Any) -> str:
+        if v is None:
+            return ""
+        if isinstance(v, dict):
+            return "\n".join(f"{k}: {val}" for k, val in v.items())
+        if isinstance(v, list):
+            return "\n".join(str(x) for x in v)
+        return str(v)
+
+    @field_validator("suspect_line", mode="before")
+    @classmethod
+    def _coerce_line(cls, v: Any) -> int | None:
+        if v is None or v == "":
+            return None
+        try:
+            n = int(v)
+            return n if n > 0 else None
+        except (TypeError, ValueError):
+            return None
 
 
 def get_configured_free_providers() -> list[dict[str, str]]:
@@ -259,7 +282,8 @@ def diagnose_with_free_llm(
             parsed_dict = _extract_json_block(content)
             parsed = FreeAIDiagnosis.model_validate(parsed_dict)
             return parsed, f"{provider['name']}:{provider['model']}", tokens
-        except Exception:
+        except Exception as exc:
+            print(f"[free_llm_engine] provider={provider['name']} failed: {exc}", file=sys.stderr)
             continue
     return None
 

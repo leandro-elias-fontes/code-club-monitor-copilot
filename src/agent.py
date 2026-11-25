@@ -418,6 +418,16 @@ def llm_diagnosis_node(state: AgentState) -> dict[str, Any]:
     )
     if free_ai is not None:
         ai_diag, ai_model, ai_tokens = free_ai
+        is_ce = bool(sym.get("is_compile_error", False) or (sandbox and sandbox.status == "ce"))
+        lbl_low = ai_diag.predicted_bug_label.lower()
+        ai_says_clean = any(
+            w in lbl_low for w in ("sem erros", "código correto", "codigo correto", "nenhum bug", "sem bug")
+        )
+        ai_bug_cls = (
+            "clean_or_minor_logic"
+            if (ai_says_clean and not is_ce and (not sandbox or sandbox.status in ("not_run", "ac_sample")))
+            else (final_bug_cls if final_bug_cls != "clean_or_minor_logic" else "ai_logic_bug")
+        )
         return {
             "diagnosis": LLMDiagnosisPayload(
                 student_logic=ai_diag.student_logic,
@@ -427,9 +437,9 @@ def llm_diagnosis_node(state: AgentState) -> dict[str, Any]:
             ),
             "how_to_fix": ai_diag.how_to_fix,
             "suspect_line": ai_diag.suspect_line or sym.get("suspect_line"),
-            "is_compile_error": bool(sym.get("is_compile_error", False) or (sandbox and sandbox.status == "ce")),
+            "is_compile_error": is_ce,
             "execution_result": sandbox,
-            "predicted_bug_class": final_bug_cls,
+            "predicted_bug_class": ai_bug_cls,
             "predicted_bug_label": ai_diag.predicted_bug_label,
             "bug_confidence": 0.99,
             "class_probabilities": prob_dict,
