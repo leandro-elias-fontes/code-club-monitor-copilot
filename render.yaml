@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: code-monitor-copilot
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: MONITOR_ACCESS_PIN
+        sync: false

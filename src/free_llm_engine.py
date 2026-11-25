@@ -35,62 +35,80 @@ class FreeAIDiagnosis(BaseModel):
     monitor_tip: str = Field(..., description="Pergunta socrática curta para destravar o aluno sem entregar código pronto")
 
 
-def get_active_free_provider() -> dict[str, str] | None:
-    """Return the first configured zero-cost OpenAI-compatible provider, or None."""
+def get_configured_free_providers() -> list[dict[str, str]]:
+    """Return all configured zero-cost providers in priority order for automatic cascade fallback."""
+    providers: list[dict[str, str]] = []
+
     groq_key = os.getenv("GROQ_API_KEY", "").strip()
     if groq_key and not groq_key.startswith("sua_"):
-        return {
-            "name": "groq",
-            "url": "https://api.groq.com/openai/v1/chat/completions",
-            "api_key": groq_key,
-            "model": os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
-        }
+        providers.append(
+            {
+                "name": "groq",
+                "url": "https://api.groq.com/openai/v1/chat/completions",
+                "api_key": groq_key,
+                "model": os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile"),
+            }
+        )
 
     openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
     if openrouter_key and not openrouter_key.startswith("sua_"):
-        return {
-            "name": "openrouter",
-            "url": "https://openrouter.ai/api/v1/chat/completions",
-            "api_key": openrouter_key,
-            "model": os.getenv("OPENROUTER_MODEL", "qwen/qwen-2.5-coder-32b-instruct:free"),
-        }
+        providers.append(
+            {
+                "name": "openrouter",
+                "url": "https://openrouter.ai/api/v1/chat/completions",
+                "api_key": openrouter_key,
+                "model": os.getenv("OPENROUTER_MODEL", "qwen/qwen-2.5-coder-32b-instruct:free"),
+            }
+        )
 
     gh_token = os.getenv("GITHUB_TOKEN", "").strip()
     if gh_token and not gh_token.startswith("sua_"):
-        return {
-            "name": "github_models",
-            "url": "https://models.inference.ai.azure.com/chat/completions",
-            "api_key": gh_token,
-            "model": os.getenv("GITHUB_MODEL", "gpt-4o-mini"),
-        }
+        providers.append(
+            {
+                "name": "github_models",
+                "url": "https://models.inference.ai.azure.com/chat/completions",
+                "api_key": gh_token,
+                "model": os.getenv("GITHUB_MODEL", "gpt-4o-mini"),
+            }
+        )
 
     ollama_url = os.getenv("OLLAMA_BASE_URL", "").strip()
     if ollama_url:
         base = ollama_url.rstrip("/")
-        return {
-            "name": "ollama",
-            "url": f"{base}/v1/chat/completions",
-            "api_key": "ollama",
-            "model": os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b"),
-        }
+        providers.append(
+            {
+                "name": "ollama",
+                "url": f"{base}/v1/chat/completions",
+                "api_key": "ollama",
+                "model": os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b"),
+            }
+        )
 
-    # 5. Embedded local GGUF model inside Docker (0 external API keys)
+    # Embedded local GGUF model (when present in high-RAM Docker/local environments)
     gguf_path = Path(os.getenv("LOCAL_LLM_MODEL_PATH", str(DEFAULT_GGUF_PATH)))
     if gguf_path.exists():
         try:
             import llama_cpp  # noqa: F401
 
-            return {
-                "name": "local_gguf",
-                "url": "",
-                "api_key": "",
-                "model": gguf_path.name,
-                "model_path": str(gguf_path),
-            }
+            providers.append(
+                {
+                    "name": "local_gguf",
+                    "url": "",
+                    "api_key": "",
+                    "model": gguf_path.name,
+                    "model_path": str(gguf_path),
+                }
+            )
         except ImportError:
             pass
 
-    return None
+    return providers
+
+
+def get_active_free_provider() -> dict[str, str] | None:
+    """Return the highest-priority configured zero-cost provider, or None."""
+    providers = get_configured_free_providers()
+    return providers[0] if providers else None
 
 
 def _get_local_llama(model_path: str) -> Any:
@@ -178,9 +196,9 @@ def diagnose_with_free_llm(
     static_findings: list[str],
     rag_refs: list[RAGReference],
 ) -> tuple[FreeAIDiagnosis, str, int] | None:
-    """Call configured free LLM grounded in real compiler/sandbox output. Returns None if unconfigured/failed."""
-    provider = get_active_free_provider()
-    if not provider:
+    """Call configured free LLMs in cascade grounded in real compiler/sandbox output. Returns None if all fail."""
+    providers = get_configured_free_providers()
+    if not providers:
         return None
 
     sandbox_summary = "Não executado (sem caso de teste fornecido)."
@@ -229,19 +247,21 @@ def diagnose_with_free_llm(
         {"role": "user", "content": user_prompt},
     ]
 
-    try:
-        content, tokens = _run_chat_completion(
-            provider=provider,
-            messages=messages,
-            temperature=0.15,
-            max_tokens=850,
-            timeout_sec=30.0,
-        )
-        parsed_dict = _extract_json_block(content)
-        parsed = FreeAIDiagnosis.model_validate(parsed_dict)
-        return parsed, f"{provider['name']}:{provider['model']}", tokens
-    except Exception:
-        return None
+    for provider in providers:
+        try:
+            content, tokens = _run_chat_completion(
+                provider=provider,
+                messages=messages,
+                temperature=0.15,
+                max_tokens=850,
+                timeout_sec=25.0,
+            )
+            parsed_dict = _extract_json_block(content)
+            parsed = FreeAIDiagnosis.model_validate(parsed_dict)
+            return parsed, f"{provider['name']}:{provider['model']}", tokens
+        except Exception:
+            continue
+    return None
 
 
 def ask_socratic_followup(
@@ -256,8 +276,8 @@ def ask_socratic_followup(
     if not q:
         return "Digite uma dúvida ou pedido (ex: 'dica mais simples para iniciante').", "local"
 
-    provider = get_active_free_provider()
-    if provider:
+    providers = get_configured_free_providers()
+    if providers:
         messages = [
             {
                 "role": "system",
@@ -277,18 +297,19 @@ def ask_socratic_followup(
                 ),
             },
         ]
-        try:
-            ans, _ = _run_chat_completion(
-                provider=provider,
-                messages=messages,
-                temperature=0.3,
-                max_tokens=450,
-                timeout_sec=25.0,
-            )
-            if ans:
-                return ans, f"{provider['name']}:{provider['model']}"
-        except Exception:
-            pass
+        for provider in providers:
+            try:
+                ans, _ = _run_chat_completion(
+                    provider=provider,
+                    messages=messages,
+                    temperature=0.3,
+                    max_tokens=450,
+                    timeout_sec=25.0,
+                )
+                if ans:
+                    return ans, f"{provider['name']}:{provider['model']}"
+            except Exception:
+                continue
 
     # Deterministic pedagogical fallback when no free LLM key is configured
     low = q.lower()

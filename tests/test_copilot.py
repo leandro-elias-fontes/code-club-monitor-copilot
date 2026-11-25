@@ -594,6 +594,43 @@ def test_embedded_local_gguf_provider_routing(monkeypatch, tmp_path) -> None:
     fle._LOCAL_LLAMA_INSTANCE = None
 
 
+def test_free_llm_cascade_fallback(monkeypatch) -> None:
+    import src.free_llm_engine as fle
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test_1")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test_2")
+
+    calls: list[str] = []
+
+    def fake_run(provider, messages, temperature, max_tokens, timeout_sec):
+        calls.append(provider["name"])
+        if provider["name"] == "groq":
+            raise RuntimeError("429 Rate Limit")
+        return (
+            '{"predicted_bug_label": "Erro de Lógica", "student_logic": "Soma errada.", '
+            '"bug_location": "Linha 1", "suspect_line": 1, "counterexample": "1 2 -> 0", '
+            '"how_to_fix": "Corrija a soma.", "monitor_tip": "O que o código imprime?"}',
+            15,
+        )
+
+    monkeypatch.setattr(fle, "_run_chat_completion", fake_run)
+    out = fle.diagnose_with_free_llm(
+        language="python",
+        code="print(0)",
+        problem_statement="Some A e B",
+        verdict="WA",
+        sandbox=None,
+        static_findings=[],
+        rag_refs=[],
+    )
+    assert out is not None
+    diag, model_used, tokens = out
+    assert calls == ["groq", "openrouter"]
+    assert "openrouter:" in model_used
+    assert tokens == 15
+
+
+
 
 
 
