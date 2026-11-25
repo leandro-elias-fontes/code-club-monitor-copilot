@@ -120,7 +120,7 @@ class ChatRequest(BaseModel):
 
 
 class CustomProblemRequest(BaseModel):
-    """Save a classroom problem (NEPS, Beecrowd, Codeforces, AtCoder, Uber Code Club)."""
+    """Save a classroom problem (NEPS, Beecrowd, Codeforces, AtCoder, Aula)."""
 
     platform: str = "NEPS / Aula"
     title: str = Field(..., min_length=2)
@@ -279,7 +279,7 @@ def get_custom_problems(limit: int = 50) -> dict[str, Any]:
 
 @app.post("/api/problems/custom")
 def create_custom_problem(req: CustomProblemRequest) -> dict[str, Any]:
-    """Save a custom NEPS/Beecrowd/Uber Code Club problem into SQLite."""
+    """Save a custom NEPS/Beecrowd/classroom problem into SQLite."""
     return save_custom_problem(
         platform=req.platform,
         title=req.title,

@@ -50,7 +50,7 @@ def save_custom_problem(
     sample_input: str = "",
     expected_output: str = "",
 ) -> dict[str, Any]:
-    """Persist a classroom problem (NEPS, Beecrowd, Codeforces, AtCoder, Uber Code Club)."""
+    """Persist a classroom problem (NEPS, Beecrowd, Codeforces, AtCoder, Aula)."""
     now = int(time.time())
     try:
         with _connect() as conn:
