@@ -528,6 +528,69 @@ def test_sandbox_env_isolation_and_monitor_pin(monkeypatch) -> None:
     ).status_code == 200
 
 
+def test_embedded_local_gguf_provider_routing(monkeypatch, tmp_path) -> None:
+    import sys
+    import types
+
+    from src.free_llm_engine import diagnose_with_free_llm
+
+    fake_gguf = tmp_path / "qwen2.5-coder-3b-instruct-q4_k_m.gguf"
+    fake_gguf.write_bytes(b"GGUF")
+    monkeypatch.setenv("LOCAL_LLM_MODEL_PATH", str(fake_gguf))
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+
+    class FakeLlama:
+        def __init__(self, **kwargs) -> None:
+            pass
+
+        def create_chat_completion(self, **kwargs):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                '{"predicted_bug_label": "Erro de Lógica na Fórmula", '
+                                '"student_logic": "Calcula soma incorreta.", '
+                                '"bug_location": "Linha 2 multiplica em vez de somar.", '
+                                '"suspect_line": 2, '
+                                '"counterexample": "Entrada: 2 3 | Aluno: 6 | Esperado: 5", '
+                                '"how_to_fix": "Troque * por +.", '
+                                '"monitor_tip": "Qual operação o enunciado pede?"}'
+                            )
+                        }
+                    }
+                ],
+                "usage": {"total_tokens": 42},
+            }
+
+    fake_mod = types.ModuleType("llama_cpp")
+    fake_mod.Llama = FakeLlama  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "llama_cpp", fake_mod)
+
+    import src.free_llm_engine as fle
+
+    fle._LOCAL_LLAMA_INSTANCE = None
+    out = diagnose_with_free_llm(
+        language="python",
+        code="a, b = map(int, input().split())\nprint(a * b)",
+        problem_statement="Imprima a soma A + B.",
+        verdict="WA",
+        sandbox=None,
+        static_findings=[],
+        rag_refs=[],
+    )
+    assert out is not None
+    diag, model_name, tokens = out
+    assert diag.suspect_line == 2
+    assert "local_gguf" in model_name
+    assert tokens == 42
+    fle._LOCAL_LLAMA_INSTANCE = None
+
+
+
 
 
 

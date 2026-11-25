@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -13,6 +14,11 @@ from pydantic import BaseModel, Field
 from src.rag_retriever import RAGReference
 from src.sandbox_runner import SandboxResult
 from src.static_analyzer import Language
+
+DEFAULT_GGUF_PATH = (
+    Path(__file__).resolve().parent.parent / "data" / "models" / "qwen2.5-coder-3b-instruct-q4_k_m.gguf"
+)
+_LOCAL_LLAMA_INSTANCE: Any = None
 
 
 class FreeAIDiagnosis(BaseModel):
@@ -66,7 +72,81 @@ def get_active_free_provider() -> dict[str, str] | None:
             "model": os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b"),
         }
 
+    # 5. Embedded local GGUF model inside Docker (0 external API keys)
+    gguf_path = Path(os.getenv("LOCAL_LLM_MODEL_PATH", str(DEFAULT_GGUF_PATH)))
+    if gguf_path.exists():
+        try:
+            import llama_cpp  # noqa: F401
+
+            return {
+                "name": "local_gguf",
+                "url": "",
+                "api_key": "",
+                "model": gguf_path.name,
+                "model_path": str(gguf_path),
+            }
+        except ImportError:
+            pass
+
     return None
+
+
+def _get_local_llama(model_path: str) -> Any:
+    """Lazy-load singleton llama_cpp.Llama instance."""
+    global _LOCAL_LLAMA_INSTANCE
+    if _LOCAL_LLAMA_INSTANCE is None:
+        from llama_cpp import Llama
+
+        threads = int(os.getenv("LOCAL_LLM_THREADS", str(max(1, (os.cpu_count() or 2)))))
+        _LOCAL_LLAMA_INSTANCE = Llama(
+            model_path=model_path,
+            n_ctx=4096,
+            n_threads=threads,
+            verbose=False,
+        )
+    return _LOCAL_LLAMA_INSTANCE
+
+
+def _run_chat_completion(
+    provider: dict[str, str],
+    messages: list[dict[str, str]],
+    temperature: float,
+    max_tokens: int,
+    timeout_sec: float,
+) -> tuple[str, int]:
+    """Execute chat completion via embedded local_gguf or OpenAI-compatible HTTP endpoint."""
+    if provider["name"] == "local_gguf":
+        llm = _get_local_llama(provider["model_path"])
+        out = llm.create_chat_completion(
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        content = (out["choices"][0]["message"]["content"] or "").strip()
+        tokens = int((out.get("usage") or {}).get("total_tokens", 0) or 0)
+        return content, tokens
+
+    headers = {
+        "Authorization": f"Bearer {provider['api_key']}",
+        "Content-Type": "application/json",
+    }
+    if provider["name"] == "openrouter":
+        headers["HTTP-Referer"] = "https://huggingface.co/spaces"
+        headers["X-Title"] = "Code Monitor Copilot"
+
+    payload = {
+        "model": provider["model"],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "messages": messages,
+    }
+    with httpx.Client(timeout=timeout_sec) as client:
+        resp = client.post(provider["url"], headers=headers, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+    content = (data["choices"][0]["message"]["content"] or "").strip()
+    tokens = int((data.get("usage") or {}).get("total_tokens", 0) or 0)
+    return content, tokens
 
 
 def _number_code_lines(code: str) -> str:
@@ -141,33 +221,21 @@ def diagnose_with_free_llm(
         f"Referências relevantes:\n{rag_txt or 'Nenhuma'}"
     )
 
-    headers = {
-        "Authorization": f"Bearer {provider['api_key']}",
-        "Content-Type": "application/json",
-    }
-    if provider["name"] == "openrouter":
-        headers["HTTP-Referer"] = "https://huggingface.co/spaces"
-        headers["X-Title"] = "Code Monitor Copilot"
-
-    payload = {
-        "model": provider["model"],
-        "temperature": 0.15,
-        "max_tokens": 850,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-    }
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
 
     try:
-        with httpx.Client(timeout=18.0) as client:
-            resp = client.post(provider["url"], headers=headers, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-        content = data["choices"][0]["message"]["content"]
+        content, tokens = _run_chat_completion(
+            provider=provider,
+            messages=messages,
+            temperature=0.15,
+            max_tokens=850,
+            timeout_sec=30.0,
+        )
         parsed_dict = _extract_json_block(content)
         parsed = FreeAIDiagnosis.model_validate(parsed_dict)
-        tokens = int((data.get("usage") or {}).get("total_tokens", 0) or 0)
         return parsed, f"{provider['name']}:{provider['model']}", tokens
     except Exception:
         return None
@@ -187,40 +255,33 @@ def ask_socratic_followup(
 
     provider = get_active_free_provider()
     if provider:
-        headers = {
-            "Authorization": f"Bearer {provider['api_key']}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": provider["model"],
-            "temperature": 0.3,
-            "max_tokens": 450,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "Você auxilia um monitor/instrutor de programação competitiva na bancada. "
-                        "Responda em Português do Brasil de forma concisa, didática e prática, sem despejar o código-gabarito pronto."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"Linguagem: {language}\n"
-                        f"Enunciado: {(problem_statement or 'Não informado')[:1200]}\n"
-                        f"Código:\n{_number_code_lines(code)[:2500]}\n"
-                        f"Diagnóstico atual: {previous_diagnosis[:800]}\n\n"
-                        f"Pedido do monitor: {q}"
-                    ),
-                },
-            ],
-        }
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Você auxilia um monitor/instrutor de programação competitiva na bancada. "
+                    "Responda em Português do Brasil de forma concisa, didática e prática, sem despejar o código-gabarito pronto."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Linguagem: {language}\n"
+                    f"Enunciado: {(problem_statement or 'Não informado')[:1200]}\n"
+                    f"Código:\n{_number_code_lines(code)[:2500]}\n"
+                    f"Diagnóstico atual: {previous_diagnosis[:800]}\n\n"
+                    f"Pedido do monitor: {q}"
+                ),
+            },
+        ]
         try:
-            with httpx.Client(timeout=15.0) as client:
-                resp = client.post(provider["url"], headers=headers, json=payload)
-                resp.raise_for_status()
-                data = resp.json()
-            ans = (data["choices"][0]["message"]["content"] or "").strip()
+            ans, _ = _run_chat_completion(
+                provider=provider,
+                messages=messages,
+                temperature=0.3,
+                max_tokens=450,
+                timeout_sec=25.0,
+            )
             if ans:
                 return ans, f"{provider['name']}:{provider['model']}"
         except Exception:
