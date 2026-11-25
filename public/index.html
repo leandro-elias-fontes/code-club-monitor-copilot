@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Code Monitor Copilot — Bancada de Monitoria</title>
+  <title>Code Monitor — Bancada de Monitoria</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <!-- CodeMirror 5 IDE Editor (gracefully falls back to textarea if offline) -->
+  <!-- CodeMirror 5 IDE Editor -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js" defer></script>
@@ -14,193 +15,187 @@
   <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js" defer></script>
   <style>
     :root {
-      --bg-app: #09090b;
-      --bg-panel: #111114;
-      --bg-elevated: #18181d;
-      --bg-input: #0c0c0f;
-      --border: rgba(255, 255, 255, 0.08);
-      --border-strong: rgba(255, 255, 255, 0.16);
-      --text: #f4f4f5;
-      --text-secondary: #a1a1aa;
-      --text-muted: #71717a;
-      --accent: #6366f1;
-      --accent-hover: #818cf8;
-      --accent-soft: rgba(99, 102, 241, 0.12);
-      --err: #f43f5e;
-      --err-bg: rgba(244, 63, 94, 0.08);
-      --err-border: rgba(244, 63, 94, 0.28);
-      --warn: #f59e0b;
-      --warn-bg: rgba(245, 158, 11, 0.08);
-      --warn-border: rgba(245, 158, 11, 0.28);
-      --ok: #10b981;
-      --ok-bg: rgba(16, 185, 129, 0.08);
-      --ok-border: rgba(16, 185, 129, 0.28);
-      --radius: 12px;
+      /* Architectural Gallery Light + Ink + Cobalt Accent (gemini-frontend-design) */
+      --bg-page: #f5f6f8;
+      --bg-surface: #ffffff;
+      --bg-subtle: #eef0f4;
+      --bg-code: #14171f;
+      --border: #dfe3ea;
+      --border-strong: #c5ccd8;
+      --ink: #0f172a;
+      --ink-secondary: #475569;
+      --ink-muted: #64748b;
+      --accent: #1d4ed8;
+      --accent-hover: #1e40af;
+      --accent-soft: #eff6ff;
+      --accent-border: #bfdbfe;
+      --err: #be123c;
+      --err-bg: #fff1f2;
+      --err-border: #fecdd3;
+      --warn: #b45309;
+      --warn-bg: #fffbeb;
+      --warn-border: #fde68a;
+      --ok: #047857;
+      --ok-bg: #ecfdf5;
+      --ok-border: #a7f3d0;
+
+      /* Strict 3-size body typography scale (>= 13px) */
+      --text-heading: 1.0625rem;
+      --text-body: 0.9375rem;
+      --text-sm: 0.8125rem;
+      --radius: 10px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-app);
-      color: var(--text);
+      font-size: var(--text-body);
+      line-height: 1.55;
+      background: var(--bg-page);
+      color: var(--ink);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       -webkit-font-smoothing: antialiased;
     }
 
-    .mono { font-family: 'JetBrains Mono', monospace; }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
     .hidden { display: none !important; }
 
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
-
-    /* Top Header */
+    /* Single-Line Architectural Header */
     .topbar {
-      height: 56px;
+      min-height: 60px;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
-      background: rgba(9, 9, 11, 0.9);
-      backdrop-filter: blur(12px);
       position: sticky;
       top: 0;
       z-index: 40;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 24px;
+      padding: 0 28px;
       gap: 16px;
     }
 
-    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand { display: flex; align-items: baseline; gap: 14px; }
 
-    .brand-mark {
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #6366f1, #4f46e5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
+    .brand-wordmark {
+      font-size: 1.25rem;
       font-weight: 700;
-      font-size: 12px;
-      flex-shrink: 0;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
     }
 
-    .brand-name { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+    .brand-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 2px;
+      background: var(--accent);
+      display: inline-block;
+    }
 
-    .engine-pill {
-      font-size: 11px;
-      padding: 3px 9px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border);
-      color: var(--text-secondary);
+    .engine-status {
+      font-size: var(--text-sm);
+      color: var(--ink-muted);
+      font-weight: 500;
       display: inline-flex;
       align-items: center;
       gap: 6px;
     }
 
-    .engine-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+    .status-led {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--ok);
+    }
 
     .topbar-actions { display: flex; align-items: center; gap: 8px; }
 
     .select-compact, .btn-ghost {
-      height: 32px;
-      background: var(--bg-panel);
+      height: 36px;
+      background: var(--bg-surface);
       border: 1px solid var(--border);
-      color: var(--text-secondary);
+      color: var(--ink-secondary);
       border-radius: 8px;
-      font-size: 12.5px;
+      font-size: var(--text-sm);
       font-weight: 500;
-      padding: 0 10px;
+      padding: 0 12px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: all 0.15s;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
       font-family: inherit;
     }
 
     .select-compact:hover, .btn-ghost:hover {
       border-color: var(--border-strong);
-      color: var(--text);
-      background: var(--bg-elevated);
+      color: var(--ink);
+      background: var(--bg-subtle);
     }
 
     .btn-ghost.active-toggle {
       background: var(--ok-bg);
       border-color: var(--ok-border);
-      color: #6ee7b7;
+      color: var(--ok);
     }
 
     .select-compact { max-width: 210px; outline: none; }
 
-    /* Main Workspace */
+    /* Workspace Grid */
     .workspace {
-      max-width: 1400px;
+      max-width: 1440px;
       width: 100%;
       margin: 0 auto;
-      padding: 18px 24px 36px;
+      padding: 24px 28px 40px;
       flex: 1;
       display: grid;
-      grid-template-columns: minmax(460px, 580px) 1fr;
-      gap: 20px;
+      grid-template-columns: minmax(480px, 600px) 1fr;
+      gap: 24px;
       align-items: start;
     }
 
-    @media (max-width: 1060px) {
-      .workspace { grid-template-columns: 1fr; padding: 14px; }
-      .engine-pill { display: none; }
-      .topbar { padding: 0 14px; }
-    }
-
-    @media (max-width: 680px) {
-      .topbar { height: auto; min-height: 54px; padding: 10px 14px; flex-wrap: wrap; gap: 10px; }
-      .topbar-actions { width: 100%; flex-wrap: wrap; }
-      .select-compact { max-width: 100%; flex: 1 1 130px; }
-      .workspace { padding: 10px; gap: 14px; }
-      .drawer-row, .tc-grid, .diff-grid, .panel-footer { grid-template-columns: 1fr; }
-      .field-top { flex-wrap: wrap; }
-      .kbd-hint { display: none; }
-      .CodeMirror { height: 240px !important; }
-      .verdict-top, .feedback-bar { flex-direction: column; align-items: flex-start; }
-    }
-
+    /* Surface Panels */
     .panel {
-      background: var(--bg-panel);
+      background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       overflow: hidden;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
 
     .panel-header {
-      padding: 10px 16px;
+      padding: 12px 18px;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      background: rgba(255, 255, 255, 0.015);
+      background: var(--bg-surface);
     }
 
     .segmented {
       display: inline-flex;
-      background: var(--bg-input);
+      background: var(--bg-subtle);
       padding: 3px;
       border-radius: 8px;
-      border: 1px solid var(--border);
     }
 
     .seg-btn {
-      padding: 5px 12px;
+      padding: 6px 14px;
       border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--ink-secondary);
       background: transparent;
       border: none;
       cursor: pointer;
@@ -209,143 +204,132 @@
     }
 
     .seg-btn.active {
-      background: var(--bg-elevated);
-      color: var(--text);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+      background: var(--bg-surface);
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     }
 
     /* Drawers */
     .drawer {
-      padding: 12px 16px;
-      background: var(--bg-elevated);
+      padding: 14px 18px;
+      background: var(--bg-subtle);
       border-bottom: 1px solid var(--border);
       display: none;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
     }
-
     .drawer.open { display: flex; }
-
-    .drawer-row { display: grid; grid-template-columns: 1fr 165px; gap: 8px; }
+    .drawer-row { display: grid; grid-template-columns: 1fr 175px; gap: 8px; }
 
     .input-ctrl {
       width: 100%;
-      height: 34px;
-      background: var(--bg-input);
+      height: 36px;
+      background: var(--bg-surface);
       border: 1px solid var(--border);
-      color: var(--text);
+      color: var(--ink);
       border-radius: 8px;
-      padding: 0 10px;
-      font-size: 12.5px;
+      padding: 0 12px;
+      font-size: var(--text-sm);
       font-family: inherit;
       outline: none;
     }
-
     .input-ctrl:focus { border-color: var(--accent); }
 
     /* Field Blocks */
-    .field-block { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .field-block { padding: 16px 18px; border-bottom: 1px solid var(--border); }
     .field-block.no-border { border-bottom: none; }
 
     .field-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       gap: 8px;
     }
 
     .field-label {
-      font-size: 12px;
+      font-size: var(--text-sm);
       font-weight: 600;
-      color: var(--text-secondary);
+      color: var(--ink);
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .field-meta { font-size: 11px; font-weight: 400; color: var(--text-muted); }
+    .field-meta { font-size: var(--text-sm); font-weight: 400; color: var(--ink-muted); }
 
     .btn-upload {
-      background: transparent;
+      background: var(--bg-surface);
       border: 1px solid var(--border);
-      color: var(--text-secondary);
-      font-size: 11.5px;
+      color: var(--ink-secondary);
+      font-size: var(--text-sm);
       font-weight: 500;
-      padding: 4px 9px;
-      border-radius: 6px;
+      padding: 5px 10px;
+      border-radius: 7px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       font-family: inherit;
       transition: all 0.15s;
     }
-
-    .btn-upload:hover { border-color: var(--accent); color: #c7d2fe; background: var(--accent-soft); }
+    .btn-upload:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
     .photo-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
     .photo-chip {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 3px 8px; border-radius: 6px;
-      background: var(--bg-elevated); border: 1px solid var(--border);
-      font-size: 11px; color: var(--text-secondary);
+      padding: 4px 9px; border-radius: 6px;
+      background: var(--bg-subtle); border: 1px solid var(--border);
+      font-size: var(--text-sm); color: var(--ink-secondary);
     }
-    .photo-chip img { width: 16px; height: 16px; object-fit: cover; border-radius: 3px; }
+    .photo-chip img { width: 18px; height: 18px; object-fit: cover; border-radius: 3px; }
 
-    /* CodeMirror IDE Styling */
+    /* Dark IDE Frame inside Light Studio */
     .cm-host {
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-strong);
       border-radius: 8px;
       overflow: hidden;
-      background: #0c0c0f;
-      transition: border-color 0.15s;
+      background: var(--bg-code);
     }
-    .cm-host:focus-within { border-color: var(--accent); }
 
     .CodeMirror {
-      height: 300px !important;
+      height: 310px !important;
       font-family: 'JetBrains Mono', monospace !important;
-      font-size: 12.5px !important;
-      line-height: 1.55 !important;
-      background: #0c0c0f !important;
-      color: #f4f4f5 !important;
+      font-size: var(--text-sm) !important;
+      line-height: 1.6 !important;
+      background: var(--bg-code) !important;
+      color: #f8fafc !important;
     }
-
-    .CodeMirror-gutters {
-      background: #101014 !important;
-      border-right: 1px solid var(--border) !important;
-    }
-
-    .CodeMirror-linenumber { color: #52525b !important; }
-    .cm-error-line { background: rgba(244, 63, 94, 0.18) !important; }
-    .cm-error-gutter { color: #fb7185 !important; font-weight: 700 !important; }
+    .CodeMirror-gutters { background: #0f1218 !important; border-right: 1px solid rgba(255,255,255,0.08) !important; }
+    .CodeMirror-linenumber { color: #64748b !important; }
+    .cm-error-line { background: rgba(244, 63, 94, 0.22) !important; }
+    .cm-error-gutter { color: #fda4af !important; font-weight: 700 !important; }
 
     .code-fallback {
       width: 100%;
-      height: 300px;
-      background: #0c0c0f;
+      height: 310px;
+      background: var(--bg-code);
       border: none;
-      color: var(--text);
+      color: #f8fafc;
       padding: 12px;
-      font-size: 12.5px;
-      line-height: 1.55;
+      font-size: var(--text-sm);
+      line-height: 1.6;
       resize: none;
       outline: none;
     }
 
     .problem-textarea {
       width: 100%;
-      background: var(--bg-input);
+      background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: 8px;
-      color: var(--text);
+      color: var(--ink);
       padding: 10px 12px;
       font-family: inherit;
-      font-size: 12.5px;
-      line-height: 1.5;
+      font-size: var(--text-sm);
+      line-height: 1.55;
       resize: vertical;
-      min-height: 64px;
+      min-height: 68px;
       outline: none;
       transition: border-color 0.15s;
     }
@@ -358,89 +342,89 @@
       justify-content: space-between;
       gap: 8px;
       flex-wrap: wrap;
-      margin-top: 10px;
+      margin-top: 12px;
     }
 
-    .verdict-pills { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+    .verdict-pills { display: inline-flex; gap: 5px; flex-wrap: wrap; }
 
     .v-pill {
-      padding: 4px 9px;
-      border-radius: 6px;
+      padding: 5px 10px;
+      border-radius: 7px;
       border: 1px solid var(--border);
-      background: var(--bg-input);
-      color: var(--text-secondary);
-      font-size: 11.5px;
+      background: var(--bg-surface);
+      color: var(--ink-secondary);
+      font-size: var(--text-sm);
       font-weight: 500;
       cursor: pointer;
       font-family: inherit;
       transition: all 0.15s;
     }
-    .v-pill:hover { border-color: var(--border-strong); color: var(--text); }
-    .v-pill.active { background: var(--accent-soft); border-color: var(--accent); color: #c7d2fe; }
+    .v-pill:hover { border-color: var(--border-strong); color: var(--ink); }
+    .v-pill.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 
     details.test-panel {
-      margin-top: 10px;
+      margin-top: 12px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: var(--bg-input);
+      background: var(--bg-page);
     }
-
     details.test-panel summary {
-      padding: 8px 12px;
-      font-size: 12px;
+      padding: 9px 12px;
+      font-size: var(--text-sm);
       font-weight: 500;
-      color: var(--text-secondary);
+      color: var(--ink-secondary);
       cursor: pointer;
       list-style: none;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-    details.test-panel summary:hover { color: var(--text); }
+    details.test-panel summary:hover { color: var(--ink); }
 
     .test-cases-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 
     .tc-item {
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 8px;
-      background: var(--bg-panel);
+      padding: 10px;
+      background: var(--bg-surface);
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
-
-    .tc-head { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--text-secondary); }
+    .tc-head { display: flex; align-items: center; justify-content: space-between; font-size: var(--text-sm); color: var(--ink-secondary); font-weight: 500; }
     .tc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
     .sample-textarea {
       width: 100%;
-      min-height: 54px;
-      background: var(--bg-input);
+      min-height: 56px;
+      background: var(--bg-page);
       border: 1px solid var(--border);
       border-radius: 6px;
-      color: var(--text);
-      padding: 7px 8px;
-      font-size: 12px;
+      color: var(--ink);
+      padding: 8px;
+      font-size: var(--text-sm);
       resize: vertical;
       outline: none;
     }
     .sample-textarea:focus { border-color: var(--accent); }
 
     .panel-footer {
-      padding: 12px 16px 16px;
+      padding: 14px 18px 18px;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 10px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-page);
     }
 
     .btn-primary {
-      height: 40px;
+      height: 42px;
       background: var(--accent);
-      color: #fff;
+      color: #ffffff;
       border: none;
       border-radius: 8px;
-      font-size: 13.5px;
+      font-size: var(--text-body);
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
@@ -454,40 +438,41 @@
     .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .btn-run {
-      height: 40px;
-      padding: 0 14px;
-      background: var(--bg-elevated);
+      height: 42px;
+      padding: 0 16px;
+      background: var(--bg-surface);
       border: 1px solid var(--border-strong);
-      color: var(--text);
+      color: var(--ink);
       border-radius: 8px;
-      font-size: 12.5px;
+      font-size: var(--text-sm);
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 6px;
       transition: all 0.15s;
     }
-    .btn-run:hover { border-color: var(--ok); color: #6ee7b7; }
+    .btn-run:hover { border-color: var(--ok); color: var(--ok); background: var(--ok-bg); }
     .btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .kbd-hint {
-      font-size: 10.5px;
-      padding: 2px 6px;
+      font-size: var(--text-sm);
+      padding: 1px 6px;
       border-radius: 4px;
-      background: rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.18);
       font-weight: 500;
     }
 
-    /* Right Panel: Report */
-    .report-col { display: flex; flex-direction: column; gap: 14px; }
+    /* Right Column */
+    .report-col { display: flex; flex-direction: column; gap: 16px; }
 
     .empty-state {
-      background: var(--bg-panel);
+      background: var(--bg-surface);
       border: 1px dashed var(--border-strong);
       border-radius: var(--radius);
-      padding: 44px 28px;
+      padding: 48px 32px;
       text-align: center;
       display: flex;
       flex-direction: column;
@@ -497,165 +482,182 @@
 
     .empty-icon {
       width: 44px; height: 44px; border-radius: 10px;
-      background: var(--accent-soft); color: var(--accent-hover);
+      background: var(--accent-soft); color: var(--accent);
       display: flex; align-items: center; justify-content: center;
     }
 
-    .empty-title { font-size: 16px; font-weight: 600; }
-    .empty-desc { font-size: 13px; color: var(--text-secondary); max-width: 440px; line-height: 1.55; }
+    .empty-title { font-size: var(--text-heading); font-weight: 600; color: var(--ink); }
+    .empty-desc { font-size: var(--text-body); color: var(--ink-secondary); max-width: 48ch; line-height: 1.6; }
     .quick-demos { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
 
+    /* Verdict Banner */
     .verdict {
       border-radius: var(--radius);
-      padding: 16px 18px;
+      padding: 18px 20px;
       border: 1px solid var(--border);
-      background: var(--bg-panel);
+      background: var(--bg-surface);
       display: flex;
       flex-direction: column;
       gap: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
     .verdict.is-error { background: var(--err-bg); border-color: var(--err-border); }
     .verdict.is-clean { background: var(--ok-bg); border-color: var(--ok-border); }
 
     .verdict-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-    .verdict-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
-    .verdict.is-error .verdict-badge { color: #fda4af; }
-    .verdict.is-clean .verdict-badge { color: #6ee7b7; }
-    .verdict-title { font-size: 16px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; }
+    .verdict-badge { font-size: var(--text-sm); font-weight: 600; margin-bottom: 4px; }
+    .verdict.is-error .verdict-badge { color: var(--err); }
+    .verdict.is-clean .verdict-badge { color: var(--ok); }
+    .verdict-title { font-size: var(--text-heading); font-weight: 700; line-height: 1.35; letter-spacing: -0.02em; color: var(--ink); }
 
     .pills { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-    .pill { font-size: 11.5px; padding: 3px 9px; border-radius: 6px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border); color: var(--text-secondary); }
-    .pill strong { color: var(--text); font-weight: 600; }
+    .pill { font-size: var(--text-sm); padding: 3px 10px; border-radius: 6px; background: var(--bg-surface); border: 1px solid var(--border); color: var(--ink-secondary); }
+    .pill strong { color: var(--ink); font-weight: 600; }
 
-    .exec-badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border); }
-    .exec-badge.ok { background: var(--ok-bg); border-color: var(--ok-border); color: #6ee7b7; }
-    .exec-badge.fail { background: var(--err-bg); border-color: var(--err-border); color: #fda4af; }
+    .exec-badge { font-size: var(--text-sm); font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); }
+    .exec-badge.ok { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
+    .exec-badge.fail { background: var(--err-bg); border-color: var(--err-border); color: var(--err); }
 
+    /* Cards */
     .card {
-      background: var(--bg-panel);
+      background: var(--bg-surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 16px 18px;
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
       gap: 10px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
 
-    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .card-title { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
-    .dot { width: 7px; height: 7px; border-radius: 50%; }
-    .line-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--err-bg); border: 1px solid var(--err-border); color: #fda4af; }
-    .card-text { font-size: 13.5px; line-height: 1.6; color: var(--text); white-space: pre-line; }
-    .card-sub { font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .card-title { font-size: var(--text-heading); font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; letter-spacing: -0.01em; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .line-tag { font-size: var(--text-sm); font-weight: 600; padding: 2px 10px; border-radius: 999px; background: var(--err-bg); border: 1px solid var(--err-border); color: var(--err); }
+    .card-text { font-size: var(--text-body); line-height: 1.6; color: var(--ink); white-space: pre-line; max-width: 65ch; }
+    .card-sub { font-size: var(--text-sm); line-height: 1.55; color: var(--ink-secondary); max-width: 65ch; }
 
     .snippet-box {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
+      background: var(--bg-code);
       border-left: 3px solid var(--err);
       border-radius: 6px;
-      padding: 9px 12px;
-      font-size: 12.5px;
+      padding: 10px 14px;
+      font-size: var(--text-sm);
       color: #fecdd3;
       overflow-x: auto;
     }
 
     .ce-box {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
       border-radius: 8px;
       padding: 12px 14px;
-      font-size: 12.5px;
+      font-size: var(--text-sm);
       line-height: 1.6;
-      color: #fde68a;
+      color: #78350f;
       white-space: pre-wrap;
     }
 
     .diff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .diff-pane {
-      background: var(--bg-input);
+      background: var(--bg-page);
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 10px 12px;
-      font-size: 12px;
+      font-size: var(--text-sm);
+      color: var(--ink);
       white-space: pre-wrap;
       overflow-x: auto;
     }
-    .diff-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
+    .diff-label { font-size: var(--text-sm); color: var(--ink-muted); margin-bottom: 4px; font-weight: 600; }
 
     .socratic-box {
       background: var(--ok-bg);
       border: 1px solid var(--ok-border);
       border-radius: 8px;
-      padding: 12px 14px;
+      padding: 14px 16px;
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
     .socratic-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .socratic-label { font-size: 11.5px; font-weight: 600; color: #6ee7b7; }
-    .socratic-text { font-size: 13.5px; line-height: 1.55; color: #ecfdf5; }
+    .socratic-label { font-size: var(--text-sm); font-weight: 600; color: var(--ok); }
+    .socratic-text { font-size: var(--text-body); line-height: 1.6; color: #064e3b; max-width: 65ch; }
 
     .btn-copy {
-      background: rgba(16, 185, 129, 0.15);
+      background: var(--bg-surface);
       border: 1px solid var(--ok-border);
-      color: #6ee7b7;
-      font-size: 11px;
+      color: var(--ok);
+      font-size: var(--text-sm);
       font-weight: 600;
       padding: 4px 10px;
       border-radius: 6px;
       cursor: pointer;
       font-family: inherit;
     }
-    .btn-copy:hover { background: rgba(16, 185, 129, 0.25); }
+    .btn-copy:hover { background: #d1fae5; }
 
-    /* Follow-up Socratic Chat */
-    .chat-box { display: flex; flex-direction: column; gap: 8px; }
-    .chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
-    .chat-msg {
-      padding: 9px 12px;
-      border-radius: 8px;
-      font-size: 12.5px;
-      line-height: 1.55;
-      white-space: pre-wrap;
-    }
-    .chat-msg.user { background: var(--accent-soft); border: 1px solid rgba(99,102,241,0.25); color: #e0e7ff; align-self: flex-end; max-width: 85%; }
-    .chat-msg.bot { background: var(--bg-input); border: 1px solid var(--border); color: var(--text); align-self: flex-start; max-width: 95%; }
+    /* Chat */
+    .chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; }
+    .chat-msg { padding: 10px 14px; border-radius: 8px; font-size: var(--text-sm); line-height: 1.55; white-space: pre-wrap; }
+    .chat-msg.user { background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--ink); align-self: flex-end; max-width: 85%; }
+    .chat-msg.bot { background: var(--bg-page); border: 1px solid var(--border); color: var(--ink); align-self: flex-start; max-width: 95%; }
     .chat-row { display: flex; gap: 8px; }
 
     /* References & Feedback */
-    details.refs { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); }
-    details.refs summary { padding: 12px 16px; font-size: 12.5px; font-weight: 500; color: var(--text-secondary); cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; }
-    details.refs summary:hover { color: var(--text); }
-    .refs-grid { padding: 0 16px 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
-    .ref-item { background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; text-decoration: none; display: block; transition: border-color 0.15s; }
+    details.refs { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius); }
+    details.refs summary { padding: 14px 18px; font-size: var(--text-sm); font-weight: 600; color: var(--ink-secondary); cursor: pointer; list-style: none; display: flex; align-items: center; justify-content: space-between; }
+    details.refs summary:hover { color: var(--ink); }
+    .refs-grid { padding: 0 18px 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .ref-item { background: var(--bg-page); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-decoration: none; display: block; transition: border-color 0.15s; }
     .ref-item:hover { border-color: var(--accent); }
-    .ref-src { font-size: 10.5px; font-weight: 600; color: var(--accent-hover); text-transform: uppercase; margin-bottom: 3px; }
-    .ref-title { font-size: 12.5px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
-    .ref-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; }
+    .ref-src { font-size: var(--text-sm); font-weight: 600; color: var(--accent); margin-bottom: 3px; }
+    .ref-title { font-size: var(--text-sm); font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+    .ref-desc { font-size: var(--text-sm); color: var(--ink-secondary); line-height: 1.45; }
 
     .feedback-bar {
       display: flex; align-items: center; justify-content: space-between; gap: 10px;
-      padding: 10px 16px; background: var(--bg-panel); border: 1px solid var(--border);
-      border-radius: var(--radius); font-size: 12px; color: var(--text-secondary);
+      padding: 12px 18px; background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius); font-size: var(--text-sm); color: var(--ink-secondary);
     }
 
     .alert-inline {
       background: var(--err-bg); border: 1px solid var(--err-border);
-      color: #fecdd3; font-size: 12.5px; padding: 10px 14px; border-radius: 8px;
+      color: var(--err); font-size: var(--text-sm); font-weight: 500;
+      padding: 12px 16px; border-radius: 8px;
     }
 
-    /* Student / Spoiler-free mode */
     body.student-mode .monitor-only { display: none !important; }
+
+    @media (max-width: 1080px) {
+      .workspace { grid-template-columns: 1fr; padding: 16px; }
+      .engine-status { display: none; }
+      .topbar { padding: 0 16px; }
+    }
+
+    @media (max-width: 680px) {
+      .topbar { height: auto; padding: 12px 14px; flex-wrap: wrap; gap: 10px; }
+      .topbar-actions { width: 100%; flex-wrap: wrap; }
+      .select-compact { max-width: 100%; flex: 1 1 130px; }
+      .workspace { padding: 12px; gap: 16px; }
+      .drawer-row, .tc-grid, .diff-grid, .panel-footer { grid-template-columns: 1fr; }
+      .field-top { flex-wrap: wrap; }
+      .kbd-hint { display: none; }
+      .CodeMirror { height: 240px !important; }
+      .verdict-top, .feedback-bar { flex-direction: column; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
 
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark mono">&lt;/&gt;</div>
-      <span class="brand-name">Code Monitor Copilot</span>
-      <span id="engineStatusPill" class="engine-pill mono">
-        <span class="engine-dot"></span>
+      <span class="brand-wordmark">
+        <span class="brand-dot"></span>
+        Code Monitor
+      </span>
+      <span id="engineStatusPill" class="engine-status">
+        <span class="status-led"></span>
         <span id="engineStatusText">Carregando motor...</span>
       </span>
     </div>
@@ -694,11 +696,11 @@
         <div class="drawer-row">
           <input id="realProbSearchInput" type="text" oninput="searchRealProblems()" placeholder="Buscar questão Codeforces (ex: dijkstra, 315, dp)..." class="input-ctrl" />
           <select id="realProbTagFilter" onchange="searchRealProblems()" class="input-ctrl">
-            <option value="all">Todos os Tópicos</option>
+            <option value="all">Todos os tópicos</option>
             <option value="graphs_bfs_dfs_dijkstra">Grafos / BFS / Dijkstra</option>
-            <option value="dynamic_programming">Programação Dinâmica</option>
-            <option value="sorting_binary_search">Busca Binária / Greedy</option>
-            <option value="prefix_sum_two_pointers">Two Pointers / Prefixos</option>
+            <option value="dynamic_programming">Programação dinâmica</option>
+            <option value="sorting_binary_search">Busca binária / Greedy</option>
+            <option value="prefix_sum_two_pointers">Two pointers / Prefixos</option>
             <option value="data_structures_hash_segtree">Estruturas / SegTree</option>
             <option value="math_ad_hoc">Matemática / Ad-Hoc</option>
           </select>
@@ -706,9 +708,9 @@
         <select id="realProbResultsSelect" onchange="selectRealProblemFromDropdown()" class="input-ctrl">
           <option value="">Selecionar questão oficial...</option>
         </select>
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding-top:4px; border-top:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding-top:6px; border-top:1px solid var(--border);">
           <select id="customProbSelect" onchange="selectCustomProblem(this.value)" class="input-ctrl" style="flex:1;">
-            <option value="">Questões salvas da turma (NEPS / Beecrowd / Aula)...</option>
+            <option value="">Questões salvas da turma...</option>
           </select>
           <button type="button" onclick="saveCurrentAsCustomProblem()" class="btn-ghost" title="Salvar enunciado e teste atual no banco da turma">
             + Salvar atual
@@ -720,14 +722,14 @@
       <div class="field-block">
         <div class="field-top">
           <span class="field-label">
-            Código do Aluno
+            Código do aluno
             <span id="lineCountHint" class="field-meta mono">1 linha</span>
           </span>
           <div style="display:flex; align-items:center; gap:8px;">
             <span id="codeOcrStatus" class="field-meta mono"></span>
             <input id="codePhotosInput" type="file" accept="image/*" multiple class="hidden" onchange="uploadMultiplePhotos('code', this.files)" />
             <button type="button" onclick="document.getElementById('codePhotosInput').click()" class="btn-upload" title="Enviar print ou usar Ctrl+V">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
               <span>Foto / Ctrl+V</span>
             </button>
           </div>
@@ -738,34 +740,33 @@
         </div>
       </div>
 
-      <!-- Problem Statement, Verdict & Multi-Test Cases -->
+      <!-- Problem Statement, URL Import, Verdict & Multi-Test Cases -->
       <div class="field-block no-border">
         <div class="field-top">
           <span class="field-label">
-            Enunciado / Limites
+            Enunciado ou limites
             <span class="field-meta">(NEPS, Beecrowd, Codeforces, AtCoder)</span>
           </span>
           <div style="display:flex; align-items:center; gap:8px;">
             <span id="probOcrStatus" class="field-meta mono"></span>
             <input id="problemPhotosInput" type="file" accept="image/*" multiple class="hidden" onchange="uploadMultiplePhotos('problem', this.files)" />
             <button type="button" onclick="document.getElementById('problemPhotosInput').click()" class="btn-upload" title="Enviar print ou usar Ctrl+V">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
               <span>Foto / Ctrl+V</span>
             </button>
           </div>
         </div>
         <div id="problemPhotosStrip" class="photo-strip hidden"></div>
-        <div style="display:flex; gap:6px; margin-bottom:8px;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
           <input
             id="problemUrlInput"
             type="url"
             class="input-ctrl"
-            style="height:32px; font-size:12px;"
             placeholder="Cole o link da questão (NEPS, Beecrowd, AtCoder, CSES, Codeforces)..."
             onkeydown="if(event.key==='Enter'){ event.preventDefault(); fetchProblemFromUrl(); }"
           />
-          <button type="button" id="fetchUrlBtn" onclick="fetchProblemFromUrl()" class="btn-ghost" style="height:32px; white-space:nowrap;">
-            Importar Link
+          <button type="button" id="fetchUrlBtn" onclick="fetchProblemFromUrl()" class="btn-ghost" style="white-space:nowrap;">
+            Importar link
           </button>
         </div>
         <textarea id="problemInput" rows="2" class="problem-textarea" placeholder="Cole o enunciado (ou os limites e exemplos de entrada/saída)..."></textarea>
@@ -784,12 +785,12 @@
 
         <details id="testCasesDetails" class="test-panel">
           <summary>
-            <span>Casos de Teste da Bancada (<span id="tcCountLabel">1</span>)</span>
-            <span class="field-meta">executa com compilador real</span>
+            <span>Casos de teste da bancada (<span id="tcCountLabel">1</span>)</span>
+            <span class="field-meta">executa no servidor</span>
           </summary>
           <div class="test-cases-body">
             <div id="testCasesList"></div>
-            <button type="button" onclick="addTestCaseRow()" class="btn-ghost" style="align-self:flex-start; height:28px; font-size:11.5px;">
+            <button type="button" onclick="addTestCaseRow()" class="btn-ghost" style="align-self:flex-start; height:32px;">
               + Adicionar caso de teste
             </button>
           </div>
@@ -798,12 +799,12 @@
 
       <div class="panel-footer">
         <button id="diagnoseBtn" type="button" onclick="runDiagnosis(null)" class="btn-primary">
-          <span>Diagnosticar Submissão</span>
+          <span>Diagnosticar submissão</span>
           <span class="kbd-hint mono">Ctrl+Enter</span>
         </button>
         <button id="runTestsBtn" type="button" onclick="runTestsOnly()" class="btn-run" title="Executar código nos casos de teste (Ctrl+Shift+Enter)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          <span>Rodar Testes</span>
+          <span>Rodar testes</span>
         </button>
       </div>
     </section>
@@ -819,7 +820,7 @@
         </div>
         <h2 class="empty-title">Bancada pronta para atendimento</h2>
         <p class="empty-desc">
-          Cole o código do aluno, informe o enunciado ou casos de teste e clique em <strong>Diagnosticar</strong> ou <strong>Rodar Testes</strong>.
+          Cole o código do aluno, importe o link da questão ou cole o enunciado e clique em <strong>Diagnosticar submissão</strong>.
         </p>
         <div id="quickDemoPills" class="quick-demos"></div>
       </div>
@@ -829,7 +830,7 @@
         <div class="card-head">
           <span class="card-title">
             <span id="trDot" class="dot" style="background: var(--ok);"></span>
-            <span>Resultado da Execução Real (Sandbox)</span>
+            <span>Execução real (Sandbox)</span>
           </span>
           <span id="trSummaryBadge" class="exec-badge ok">—</span>
         </div>
@@ -842,12 +843,12 @@
         <div id="verdictBanner" class="verdict is-error">
           <div class="verdict-top">
             <div>
-              <div id="verdictOverline" class="verdict-badge">Bug Detectado</div>
+              <div id="verdictOverline" class="verdict-badge">Bug detectado</div>
               <h2 id="mainBugTitle" class="verdict-title">—</h2>
             </div>
             <button type="button" id="studentModeBtn" onclick="toggleStudentMode()" class="btn-ghost" title="Oculta correções prontas para poder mostrar a tela direto ao aluno">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-              <span id="studentModeLabel">Modo Aluno (Sem Spoiler)</span>
+              <span id="studentModeLabel">Modo aluno (sem spoiler)</span>
             </button>
           </div>
           <div class="pills mono monitor-only">
@@ -858,12 +859,12 @@
           </div>
         </div>
 
-        <!-- 1. Diagnóstico Técnico (Monitor only) -->
+        <!-- 1. Causa raiz -->
         <div class="card monitor-only">
           <div class="card-head">
             <span class="card-title">
               <span id="step1Dot" class="dot" style="background: var(--err);"></span>
-              <span id="step1Title">Causa Raiz</span>
+              <span id="step1Title">Causa raiz</span>
             </span>
             <span id="suspectLineBadge" class="line-tag mono hidden">Linha —</span>
           </div>
@@ -872,23 +873,23 @@
           <p id="outStudentLogic" class="card-sub">—</p>
         </div>
 
-        <!-- 2. Contra-exemplo (Visible in Student Mode too!) -->
+        <!-- 2. Contra-exemplo -->
         <div id="counterexampleCard" class="card">
           <div class="card-head">
             <span class="card-title">
               <span class="dot" style="background: var(--warn);"></span>
-              <span>Caso de Teste para Mostrar na Bancada</span>
+              <span>Caso de teste para mostrar na bancada</span>
             </span>
           </div>
           <div id="outCounterexample" class="ce-box mono">—</div>
         </div>
 
-        <!-- 3. Orientação + Pergunta Socrática -->
+        <!-- 3. Como orientar o aluno -->
         <div class="card">
           <div class="card-head monitor-only">
             <span class="card-title">
               <span class="dot" style="background: var(--ok);"></span>
-              <span>Como Orientar o Aluno</span>
+              <span>Como orientar o aluno</span>
             </span>
           </div>
           <p id="outHowToFix" class="card-text monitor-only">—</p>
@@ -901,14 +902,14 @@
           </div>
         </div>
 
-        <!-- 4. Chat de Acompanhamento Socrático (Monitor only) -->
+        <!-- 4. Chat socrático -->
         <div class="card monitor-only">
           <div class="card-head">
             <span class="card-title">
               <span class="dot" style="background: var(--accent);"></span>
-              <span>Acompanhamento na Bancada</span>
+              <span>Acompanhamento na bancada</span>
             </span>
-            <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
               <button type="button" onclick="sendQuickChat('Gere uma dica mais simples para aluno iniciante')" class="v-pill">Mais simples</button>
               <button type="button" onclick="sendQuickChat('Gere um contra-exemplo menor ainda')" class="v-pill">Caso menor</button>
             </div>
@@ -916,11 +917,11 @@
           <div id="chatLog" class="chat-log hidden"></div>
           <div class="chat-row">
             <input id="chatInput" type="text" class="input-ctrl" placeholder="Pergunte ao copiloto (ex: como explicar esse bug sem dar o código?)..." onkeydown="if(event.key==='Enter') sendChat()" />
-            <button type="button" onclick="sendChat()" class="btn-ghost" style="height:34px; padding:0 14px;">Enviar</button>
+            <button type="button" onclick="sendChat()" class="btn-ghost" style="padding:0 16px;">Enviar</button>
           </div>
         </div>
 
-        <!-- Referências (Monitor only) -->
+        <!-- Referências -->
         <details id="refsDrawer" class="refs monitor-only">
           <summary>
             <span>Material de apoio relacionado</span>
@@ -929,7 +930,7 @@
           <div id="ragCardsContainer" class="refs-grid"></div>
         </details>
 
-        <!-- Feedback (Monitor only) -->
+        <!-- Feedback -->
         <div class="feedback-bar monitor-only">
           <span id="feedbackPrompt">Este diagnóstico ajudou na bancada?</span>
           <div style="display:flex; gap:6px;">
@@ -1068,7 +1069,7 @@
       const active = document.body.classList.toggle('student-mode');
       const btn = document.getElementById('studentModeBtn');
       btn.classList.toggle('active-toggle', active);
-      document.getElementById('studentModeLabel').textContent = active ? 'Voltar ao Modo Monitor' : 'Modo Aluno (Sem Spoiler)';
+      document.getElementById('studentModeLabel').textContent = active ? 'Voltar ao modo monitor' : 'Modo aluno (sem spoiler)';
     }
 
     function toggleQuestionBank() {
@@ -1085,7 +1086,7 @@
       div.innerHTML = `
         <div class="tc-head">
           <span class="tc-name">Caso ${idx}</span>
-          <button type="button" onclick="removeTestCaseRow(this)" class="v-pill" style="padding:2px 7px; font-size:10.5px;">Remover</button>
+          <button type="button" onclick="removeTestCaseRow(this)" class="v-pill" style="padding:3px 8px;">Remover</button>
         </div>
         <div class="tc-grid">
           <textarea class="sample-textarea mono tc-in" placeholder="Entrada...">${inp}</textarea>
@@ -1165,7 +1166,7 @@
         showError('Erro de conexão ao importar o link.');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Importar Link';
+        btn.textContent = 'Importar link';
       }
     }
 
@@ -1313,21 +1314,21 @@
       (ex.cases || []).forEach(c => {
         const ok = c.status === 'ac_sample';
         const div = document.createElement('div');
-        div.style.cssText = 'border:1px solid var(--border); border-radius:8px; padding:10px; background:var(--bg-input);';
+        div.style.cssText = 'border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg-page);';
         let bodyHtml = '';
         if (c.status === 'ce' || c.status === 'rte' || c.status === 'tle') {
-          bodyHtml = `<div class="mono" style="font-size:12px; color:#fecdd3; white-space:pre-wrap; margin-top:6px;">${escapeHtml(c.sanitizer_issue ? c.sanitizer_issue + '\n' : '')}${escapeHtml(c.stderr)}</div>`;
+          bodyHtml = `<div class="mono" style="font-size:var(--text-sm); color:var(--err); white-space:pre-wrap; margin-top:6px;">${escapeHtml(c.sanitizer_issue ? c.sanitizer_issue + '\n' : '')}${escapeHtml(c.stderr)}</div>`;
         } else {
           bodyHtml = `
             <div class="diff-grid" style="margin-top:8px;">
-              <div class="diff-pane mono"><div class="diff-label">Saída do Aluno</div>${escapeHtml(c.actual_output || '(vazio)')}</div>
-              <div class="diff-pane mono"><div class="diff-label">Saída Esperada</div>${escapeHtml(c.expected_output || '(não informada)')}</div>
+              <div class="diff-pane mono"><div class="diff-label">Saída do aluno</div>${escapeHtml(c.actual_output || '(vazio)')}</div>
+              <div class="diff-pane mono"><div class="diff-label">Saída esperada</div>${escapeHtml(c.expected_output || '(não informada)')}</div>
             </div>
           `;
         }
         div.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:12px; font-weight:600;">${escapeHtml(c.name)}</span>
+            <span style="font-size:var(--text-sm); font-weight:600;">${escapeHtml(c.name)}</span>
             <span class="exec-badge ${ok ? 'ok' : 'fail'} mono">${c.status.toUpperCase()} • ${c.runtime_ms} ms</span>
           </div>
           ${bodyHtml}
@@ -1425,16 +1426,16 @@
 
       if (isClean) {
         banner.className = 'verdict is-clean';
-        document.getElementById('verdictOverline').textContent = 'Verificação Estrutural OK';
+        document.getElementById('verdictOverline').textContent = 'Verificação estrutural OK';
         step1Dot.style.background = 'var(--ok)';
         step1Title.textContent = 'O que foi verificado';
       } else {
         banner.className = 'verdict is-error';
         document.getElementById('verdictOverline').textContent = data.is_compile_error
-          ? 'Erro de Compilação / Sintaxe'
-          : (data.source === 'free_llm' ? 'Diagnóstico IA + Sandbox' : 'Bug Detectado');
+          ? 'Erro de compilação / sintaxe'
+          : (data.source === 'free_llm' ? 'Diagnóstico IA + Sandbox' : 'Bug detectado');
         step1Dot.style.background = 'var(--err)';
-        step1Title.textContent = 'Causa Raiz';
+        step1Title.textContent = 'Causa raiz';
       }
 
       document.getElementById('mainBugTitle').textContent = data.predicted_bug_label || data.predicted_bug_class;
@@ -1720,10 +1721,10 @@
           await promptForMonitorPin();
         }
 
-        const compTxt = health.compiler_available ? 'g++ Ativo' : 'Python Sandbox';
+        const compTxt = health.compiler_available ? 'g++ ativo' : 'Python sandbox';
         const aiTxt = health.ai_provider && health.ai_provider !== 'local_sandbox_ml'
           ? `IA (${health.ai_provider.split(':')[0]})`
-          : 'Motor Local';
+          : 'Motor local';
         document.getElementById('engineStatusText').textContent = `${compTxt} • ${aiTxt}`;
 
         const sel = document.getElementById('demoSelect');
