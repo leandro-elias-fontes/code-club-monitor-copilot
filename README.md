@@ -1,81 +1,55 @@
----
-title: Code Monitor Copilot
-emoji: 💻
-colorFrom: indigo
-colorTo: blue
-sdk: docker
-app_port: 7860
-pinned: false
----
+# Code Monitor Copilot
 
-# Code Monitor Copilot (Zero-API Dual-ML Engine + Sandbox)
-
-Aplicação web e motor de inteligência artificial **100% independente de chaves de API externas** para monitores e instrutores de programação competitiva e algoritmos (**C, C++ e Python**).
-
-O monitor seleciona ou cola o enunciado da questão e o código do aluno (com `WA`, `TLE` ou `RTE`) e recebe em **menos de 15 milissegundos** um diagnóstico socrático estruturado em 4 blocos, fundamentado por **2 modelos de Machine Learning treinados localmente** e **RAG nas 5 principais referências da área**.
+Copiloto de bancada para **instrutores e monitores** de programação competitiva e algoritmos (**C, C++ e Python**), focado em questões do **NEPS, Beecrowd, Codeforces, AtCoder e CSES**.
 
 ---
 
-## Como Funciona a Arquitetura Dupla (Zero-API)
+## Principais Recursos
 
-1. **Extrator de Restrições & AST de 33 Features (`src/feature_extractor.py`) + Analisador Estático (`src/static_analyzer.py`)**:
-   - Extrai automaticamente do enunciado (em Português ou Inglês): limite $\log_{10}(N)$, limite de valor dos elementos $\log_{10}(V_{\max})$, limite de tempo (segundos), presença de múltiplos casos de teste ($T$), números negativos e a **complexidade assintótica máxima permitida**.
-   - Analisa a árvore sintática (AST) e padrões léxicos em C, C++ e Python: profundidade de loops aninhados, estimativa de operações vs. limite de tempo, acumuladores `int` 32-bit vs `long long` 64-bit, condições `<=` em laços 0-indexed, variáveis globais sem `.clear()`/`memset`, `std::endl` dentro de loops, busca binária com arredondamento truncado `l = mid`, recursão sem memoização, variáveis locais não inicializadas e proteção contra *Prompt Injection*.
-2. **Modelo Duplo Treinado (`src/train_models.py` -> `data/models/copilot_ml_weights.json`)**:
-   - **Modelo 1 (`Algorithm & Problem Matcher` - Multinomial Naive Bayes):** Classifica a família algorítmica exigida pela questão (*Soma de Prefixos / Two Pointers, Ordenação / Busca Binária / Greedy, Grafos / BFS / DFS / Dijkstra, Programação Dinâmica, Estruturas de Dados / Hash / SegTree, Matemática / Ad-Hoc*).
-   - **Modelo 2 (`BugMLP` em PyTorch + `XGBoost`):** Treinado via validação cruzada estratificada de 5 folds (`5-Fold StratifiedKFold`) em **3.200 submissões balanceadas** cobrindo 8 classes de diagnóstico com probabilidade de confiança.
-   - **Inferência Ultra-Leve na Vercel (`src/ml_predictor.py`):** Os pesos treinados do PyTorch (`BugMLP`) e do classificador algorítmico são exportados para JSON compacto (< 250 KB) e executados em **NumPy puro (< 5ms)**, mantendo o pacote Serverless da Vercel muito abaixo do limite de 250 MB.
-3. **RAG em 5 Fontes Canônicas (`data/knowledge_base/` + `src/rag_retriever.py`)**:
-   - Motor TF-IDF + Similaridade de Cosseno em memória indexando:
-     - `youkn0wwho_topics.json` (**YouKn0wWho Academy**)
-     - `cses_patterns.json` (**CSES Problem Set**)
-     - `codeforces_pitfalls.json` (**Codeforces**)
-     - `atcoder_educational.json` (**AtCoder ABC / Educational DP**)
-     - `maratona_sbc_icpc.json` (**Maratona SBC / OBI**)
-4. **Ciclo de Evolução Contínua na Monitoria (`/api/feedback`)**:
-   - Monitores e instrutores podem salvar casos reais atendidos na sala de aula diretamente pela interface (`data/monitor_feedback_cases.jsonl`) para re-treinar e evoluir o modelo continuamente.
+1. **Sandbox Real com Compilador e Sanitizers (`src/sandbox_runner.py`)**:
+   - Compila C/C++ com `-Wall -Wextra` e **ASan/UBSan** (quando suportado pelo toolchain Linux) e executa Python em subprocesso isolado (sem acesso às variáveis de ambiente do servidor e com limites de CPU/RAM).
+   - Roda múltiplos casos de teste com diff lado a lado (**Saída do aluno vs. Saída esperada**), diferenciando `AC`, `PE` (*Presentation Error*), `WA`, `RTE`, `TLE` e `CE`.
+2. **Detectores Determinísticos + ML Local (`src/platform_rules.py`, `src/micro_checker.py`, `src/ml_predictor.py`)**:
+   - Mais de 25 padrões específicos para Beecrowd, NEPS, Codeforces e AtCoder (ex: falta de `fixed << setprecision(k)`, divisão inteira `int / int`, `cin >>` antes de `getline`, `1 << k` overflow, `memset` inválido, módulo negativo, cópia rasa `[[0]*m]*n` em Python).
+   - Classificador `BugMLP` + `AlgoNB` em NumPy puro e RAG nas 5 principais referências da área (`YouKn0wWho`, `CSES`, `Codeforces`, `AtCoder`, `Maratona SBC`).
+3. **Cascata Gratuita de IA (`src/free_llm_engine.py`, opcional)**:
+   - Suporta provedores gratuitos em cascata automática (`GROQ_API_KEY` → `OPENROUTER_API_KEY` → `GITHUB_TOKEN` → `OLLAMA_BASE_URL` → motor local), fundamentando a resposta na saída real do compilador/sandbox.
+4. **Interface de Bancada (`public/index.html`)**:
+   - Editor **CodeMirror** com destaque de sintaxe e marcação automática na linha do erro.
+   - Importação direta de enunciados e exemplos por **link** (`/api/problems/fetch-url`, com proteção anti-SSRF) ou por **print (`Ctrl+V` / OCR)**.
+   - **Modo aluno (sem spoiler)** para exibir apenas contra-exemplo e pergunta socrática na bancada.
+   - Chat socrático de acompanhamento (`/api/chat`), banco de questões da turma em SQLite (`/api/problems/custom`) e PIN opcional (`MONITOR_ACCESS_PIN`).
 
 ---
 
-## Métricas Reais de Treinamento (5-Fold Stratified Cross-Validation, `N = 3.200`)
-
-Os gráficos de convergência da rede neural e a matriz de confusão são gerados automaticamente em `assets/training_metrics.png`:
-
-| Modelo | 5-Fold Accuracy | 5-Fold Macro F1 | Precision | Recall | Peso Exportado |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **PyTorch `BugMLP` (64 -> 32 -> 8)** | **99.9%** | **0.999** | **0.999** | **0.999** | **< 250 KB (JSON)** |
-| **XGBoost Classifier (`max_depth=5`)** | **100.0%** | **1.000** | **1.000** | **1.000** | Benchmark CV |
-| **Algorithm & Problem Matcher (NB)** | **96.5%+** | — | — | — | Integrado ao JSON |
-
----
-
-## Estrutura do Projeto (Pronto para Deploy na Vercel)
-
-- `api/index.py`: API Serverless em **FastAPI** (`/api/diagnose`, `/api/demos`, `/api/health`, `/api/feedback`).
-- `public/index.html`: Interface Web escura moderna (estilo IDE/Codeforces) com diagnóstico em 4 blocos, barras de probabilidade do modelo, extrator de limites da questão, guias do RAG e coleta de feedback da monitoria.
-- `vercel.json`: Configuração de rotas Serverless e arquivos estáticos para deploy imediato na **Vercel**.
-- `src/feature_extractor.py`: Extrator das 33 features de AST + parser de restrições matemáticas de enunciados.
-- `src/dataset_builder.py`: Construtor do dataset de 3.200 submissões C/C++/Python + enunciados (`data/training_submissions.jsonl`).
-- `src/train_models.py`: Pipeline de treinamento PyTorch + XGBoost (5-Fold CV), geração de gráficos em `assets/` e exportação dos pesos para `data/models/copilot_ml_weights.json`.
-- `src/ml_predictor.py`: Motor de inferência Zero-API em NumPy puro + gerador simbólico de contra-exemplos e perguntas socráticas.
-- `src/hf_publisher.py`: Script para publicar pesos, dataset e Model Card no **Hugging Face Hub**.
-- `tests/test_copilot.py`: Suíte completa de testes automatizados (`pytest`).
-
----
-
-## Como Rodar Localmente e Treinar o Modelo
+## Como Rodar Localmente
 
 ```bash
-# 1. Rodar o treinamento completo (gera dataset, 5-Fold CV, graficos e exporta pesos)
-python -m src.train_models
+# Instalar dependências
+pip install -r requirements.txt
 
-# 2. Subir o servidor web localmente
-uvicorn api.index:app --reload
+# Subir o servidor web
+uvicorn api.index:app --reload --port 8000
 ```
 
-Acesse `http://127.0.0.1:8000` no navegador.
+Acesse `http://127.0.0.1:8000`.
 
-## Como Fazer Deploy na Vercel
+### Rodar Linters e Testes
 
-1. Suba o repositório para o GitHub.
-2. Importe o projeto na **Vercel** (o arquivo `vercel.json` e o `requirements.txt` enxuto já configuram o runtime Python Serverless automaticamente, sem precisar configurar nenhuma variável de ambiente ou chave de API).
+```bash
+ruff check .
+pytest -v
+```
+
+---
+
+## Como Subir Gratuitamente no Render (Docker Free)
+
+O repositório já inclui [Dockerfile](Dockerfile) e [render.yaml](render.yaml) configurados para o plano gratuito (**512 MB RAM**, health check em `GET /health` e porta dinâmica `${PORT:-7860}`):
+
+1. Crie uma conta gratuita em **https://render.com** e clique em **New + → Web Service**.
+2. Conecte este repositório e selecione **Runtime: Docker** e **Instance Type: Free**.
+3. Em **Environment Variables** (opcional, recomendado):
+   - `GROQ_API_KEY`: chave gratuita criada em **https://console.groq.com** (sem cartão).
+   - `MONITOR_ACCESS_PIN`: senha/PIN para restringir o acesso aos instrutores e monitores.
+4. Clique em **Create Web Service**.

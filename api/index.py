@@ -6,6 +6,8 @@ import hmac
 import json
 import os
 import shutil
+import time
+from collections import defaultdict, deque
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -44,16 +46,45 @@ app.add_middleware(
 )
 
 
+_RATE_LIMIT_BUCKETS: dict[str, deque[float]] = defaultdict(deque)
+_RATE_LIMITED_PATHS = {
+    "/api/diagnose",
+    "/api/run-tests",
+    "/api/chat",
+    "/api/ocr",
+    "/api/problems/fetch-url",
+}
+
+
 @app.middleware("http")
-async def verify_monitor_pin_middleware(request: Request, call_next: Any) -> Any:
-    """Protect /api/* endpoints when MONITOR_ACCESS_PIN is configured."""
-    expected_pin = os.getenv("MONITOR_ACCESS_PIN", "").strip()
+async def security_and_pin_middleware(request: Request, call_next: Any) -> Any:
+    """Enforce optional MONITOR_ACCESS_PIN, sliding-window rate limits, and security headers."""
     path = request.url.path
+
+    # 1. Optional PIN protection
+    expected_pin = os.getenv("MONITOR_ACCESS_PIN", "").strip()
     if expected_pin and path.startswith("/api/") and path not in ("/api/health", "/api/auth/verify", "/api/demos"):
         provided = request.headers.get("x-monitor-pin", "").strip()
         if not hmac.compare_digest(provided, expected_pin):
             return JSONResponse(status_code=401, content={"detail": "PIN de monitor inválido ou ausente."})
-    return await call_next(request)
+
+    # 2. Lightweight per-IP rate limit (60 req / 60s) on compute/network endpoints
+    if path in _RATE_LIMITED_PATHS:
+        client_ip = (request.client.host if request.client else "") or "local"
+        if client_ip != "testclient":
+            now = time.monotonic()
+            bucket = _RATE_LIMIT_BUCKETS[client_ip]
+            while bucket and now - bucket[0] > 60.0:
+                bucket.popleft()
+            if len(bucket) >= 60:
+                return JSONResponse(status_code=429, content={"detail": "Muitas requisições. Aguarde alguns segundos."})
+            bucket.append(now)
+
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
 
 
 class DiagnoseRequest(BaseModel):

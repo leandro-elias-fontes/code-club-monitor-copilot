@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import html
+import ipaddress
 import re
+import socket
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urlparse
@@ -90,13 +92,52 @@ def _is_blocked_or_challenge(status_code: int, body: str) -> bool:
     )
 
 
+def _is_safe_public_url(url: str) -> tuple[bool, str]:
+    """Prevent SSRF by allowing only http(s) URLs that resolve to public IP addresses."""
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
+        return False, "Esquema de URL inválido. Use apenas http:// ou https://."
+    host = parsed.hostname.strip().lower()
+    if host in ("localhost", "ip6-localhost") or host.endswith(".local") or host.endswith(".internal"):
+        return False, "Acesso a endereços locais/internos bloqueado por segurança."
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return False, "Não foi possível resolver o endereço do site."
+    for info in infos:
+        ip_str = str(info[4][0]).split("%")[0]
+        try:
+            ip_obj = ipaddress.ip_address(ip_str)
+            if (
+                ip_obj.is_private
+                or ip_obj.is_loopback
+                or ip_obj.is_link_local
+                or ip_obj.is_reserved
+                or ip_obj.is_multicast
+                or ip_obj.is_unspecified
+            ):
+                return False, "Endereço IP privado ou reservado bloqueado por segurança (SSRF)."
+        except ValueError:
+            return False, "Endereço IP inválido."
+    return True, ""
+
+
 def _fetch_http(url: str) -> tuple[int, str, str]:
+    safe, reason = _is_safe_public_url(url)
+    if not safe:
+        raise ValueError(reason)
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
         "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
     }
-    with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+    with httpx.Client(timeout=10.0, follow_redirects=False) as client:
         resp = client.get(url, headers=headers)
+        if resp.is_redirect and "location" in resp.headers:
+            next_url = str(resp.next_request.url) if resp.next_request else resp.headers["location"]
+            safe_next, reason_next = _is_safe_public_url(next_url)
+            if not safe_next:
+                raise ValueError(reason_next)
+            resp = client.get(next_url, headers=headers)
         return resp.status_code, resp.text, resp.headers.get("content-type", "")
 
 
@@ -244,8 +285,12 @@ def fetch_problem_from_url(raw_url: str) -> FetchedProblem:
     url = (raw_url or "").strip()
     if not url:
         return FetchedProblem(ok=False, message="Informe um link válido da questão.")
-    if not re.match(r"^https?://", url, re.IGNORECASE):
+    if not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", url):
         url = "https://" + url
+
+    safe, reason = _is_safe_public_url(url)
+    if not safe:
+        return FetchedProblem(ok=False, source_url=url, message=reason)
 
     parsed = urlparse(url)
     host = (parsed.netloc or "").lower()

@@ -630,6 +630,27 @@ def test_free_llm_cascade_fallback(monkeypatch) -> None:
     assert tokens == 15
 
 
+def test_security_ssrf_and_headers() -> None:
+    from src.problem_fetcher import fetch_problem_from_url
+
+    for bad_url in (
+        "http://127.0.0.1:8000/api/health",
+        "http://169.254.169.254/latest/meta-data",
+        "file:///etc/passwd",
+        "http://localhost:7860",
+    ):
+        res = fetch_problem_from_url(bad_url)
+        assert res.ok is False
+        assert "bloqueado" in res.message.lower() or "inválido" in res.message.lower()
+
+    client = TestClient(app)
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.headers.get("x-content-type-options") == "nosniff"
+    assert r.headers.get("x-frame-options") == "SAMEORIGIN"
+
+
+
 
 
 
