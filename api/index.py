@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import hmac
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from src.agent import DiagnosisResponse, run_copilot, save_monitor_feedback_case
@@ -40,6 +42,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def verify_monitor_pin_middleware(request: Request, call_next: Any) -> Any:
+    """Protect /api/* endpoints when MONITOR_ACCESS_PIN is configured."""
+    expected_pin = os.getenv("MONITOR_ACCESS_PIN", "").strip()
+    path = request.url.path
+    if expected_pin and path.startswith("/api/") and path not in ("/api/health", "/api/auth/verify", "/api/demos"):
+        provided = request.headers.get("x-monitor-pin", "").strip()
+        if not hmac.compare_digest(provided, expected_pin):
+            return JSONResponse(status_code=401, content={"detail": "PIN de monitor inválido ou ausente."})
+    return await call_next(request)
 
 
 class DiagnoseRequest(BaseModel):
@@ -122,12 +136,25 @@ def health_check() -> dict[str, Any]:
         "zero_api_mode": provider is None,
         "ai_provider": f"{provider['name']}:{provider['model']}" if provider else "local_sandbox_ml",
         "compiler_available": bool(shutil.which("g++")),
+        "pin_required": bool(os.getenv("MONITOR_ACCESS_PIN", "").strip()),
         "weights_loaded": DEFAULT_WEIGHTS_PATH.exists(),
         "real_problems_count": _PROBLEM_CATALOG.total_count(),
         "model_metadata": meta,
         "bug_classes": BUG_CLASS_LABELS_PT,
         "algo_families": ALGO_FAMILY_LABELS_PT,
     }
+
+
+@app.post("/api/auth/verify")
+def verify_pin_endpoint(request: Request) -> dict[str, bool]:
+    """Validate the optional MONITOR_ACCESS_PIN."""
+    expected_pin = os.getenv("MONITOR_ACCESS_PIN", "").strip()
+    if not expected_pin:
+        return {"ok": True}
+    provided = request.headers.get("x-monitor-pin", "").strip()
+    if not hmac.compare_digest(provided, expected_pin):
+        raise HTTPException(status_code=401, detail="PIN incorreto.")
+    return {"ok": True}
 
 
 @app.get("/api/problems/search")

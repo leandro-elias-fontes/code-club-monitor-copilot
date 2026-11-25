@@ -943,6 +943,40 @@
     let HAS_UPLOADED_CODE_PHOTO = false;
     let TC_COUNTER = 0;
 
+    // Automatically attach Monitor PIN (if configured) to all /api/* requests
+    const _origFetch = window.fetch.bind(window);
+    window.fetch = async (input, init = {}) => {
+      const url = typeof input === 'string' ? input : (input && input.url) || '';
+      if (url.startsWith('/api/')) {
+        const pin = localStorage.getItem('monitor_pin') || '';
+        const headers = new Headers(init.headers || {});
+        if (pin && !headers.has('X-Monitor-Pin')) {
+          headers.set('X-Monitor-Pin', pin);
+        }
+        init = { ...init, headers };
+      }
+      const res = await _origFetch(input, init);
+      if (res.status === 401 && url.startsWith('/api/') && url !== '/api/auth/verify') {
+        await promptForMonitorPin();
+      }
+      return res;
+    };
+
+    async function promptForMonitorPin() {
+      const entered = prompt('Acesso restrito aos monitores. Digite o PIN de acesso:');
+      if (!entered) return;
+      const res = await _origFetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'X-Monitor-Pin': entered.trim() }
+      });
+      if (res.ok) {
+        localStorage.setItem('monitor_pin', entered.trim());
+        location.reload();
+      } else {
+        alert('PIN incorreto.');
+      }
+    }
+
     function getCodeValue() {
       return CM_EDITOR ? CM_EDITOR.getValue() : document.getElementById('codeInput').value;
     }
@@ -1669,6 +1703,10 @@
         const [healthRes, demosRes] = await Promise.all([fetch('/api/health'), fetch('/api/demos')]);
         const health = await healthRes.json();
         DEMOS = await demosRes.json();
+
+        if (health.pin_required && !localStorage.getItem('monitor_pin')) {
+          await promptForMonitorPin();
+        }
 
         const compTxt = health.compiler_available ? 'g++ Ativo' : 'Python Sandbox';
         const aiTxt = health.ai_provider && health.ai_provider !== 'local_sandbox_ml'

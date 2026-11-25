@@ -499,5 +499,35 @@ def test_pro_endpoints_multi_test_chat_and_custom_problems() -> None:
     assert atc.test_cases[0].expected_output == "3"
 
 
+def test_sandbox_env_isolation_and_monitor_pin(monkeypatch) -> None:
+    from src.sandbox_runner import run_in_sandbox
+
+    # 1. Sandbox must NOT leak server API keys to student code
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_super_secret_do_not_leak")
+    res = run_in_sandbox(
+        code="import os\nprint(os.environ.get('GROQ_API_KEY', 'SAFE'))",
+        language="python",
+        sample_input="1",
+        expected_output="SAFE",
+    )
+    assert res.ran is True
+    assert res.status == "ac_sample"
+    assert "gsk_super_secret" not in res.actual_output
+
+    # 2. Optional MONITOR_ACCESS_PIN protects /api/* endpoints
+    monkeypatch.setenv("MONITOR_ACCESS_PIN", "4242")
+    client = TestClient(app)
+    assert client.get("/api/health").json()["pin_required"] is True
+    assert client.post("/api/run-tests", json={"language": "python", "code": "print(1)", "test_cases": [{"sample_input": "1"}]}).status_code == 401
+    assert client.post("/api/auth/verify", headers={"X-Monitor-Pin": "wrong"}).status_code == 401
+    assert client.post("/api/auth/verify", headers={"X-Monitor-Pin": "4242"}).status_code == 200
+    assert client.post(
+        "/api/run-tests",
+        headers={"X-Monitor-Pin": "4242"},
+        json={"language": "python", "code": "print(1)", "test_cases": [{"sample_input": "1", "expected_output": "1"}]},
+    ).status_code == 200
+
+
+
 
 

@@ -265,10 +265,30 @@ def run_test_cases_in_sandbox(
                 )
             cmd = compiled_cmd
 
-        env = os.environ.copy()
+        # Minimal sanitized environment so student code never sees server API keys/secrets
+        env: dict[str, str] = {}
+        for safe_key in ("PATH", "SystemRoot", "TEMP", "TMP", "LANG", "LC_ALL"):
+            if safe_key in os.environ:
+                env[safe_key] = os.environ[safe_key]
         if sanitizers_used:
             env["ASAN_OPTIONS"] = "detect_leaks=0:abort_on_error=1"
             env["UBSAN_OPTIONS"] = "print_stacktrace=1:halt_on_error=1"
+
+        preexec = None
+        if os.name != "nt":
+            def _limit_resources() -> None:
+                try:
+                    import resource
+
+                    resource.setrlimit(resource.RLIMIT_CPU, (3, 3))
+                    resource.setrlimit(resource.RLIMIT_FSIZE, (4 * 1024 * 1024, 4 * 1024 * 1024))
+                    if not sanitizers_used:
+                        # ASan reserves large virtual address space, so only cap RLIMIT_AS when ASan is off
+                        resource.setrlimit(resource.RLIMIT_AS, (512 * 1024 * 1024, 512 * 1024 * 1024))
+                except Exception:
+                    pass
+
+            preexec = _limit_resources
 
         case_results: list[TestCaseResult] = []
         worst_case: TestCaseResult | None = None
@@ -286,6 +306,8 @@ def run_test_cases_in_sandbox(
                     text=True,
                     timeout=timeout_sec,
                     env=env,
+                    cwd=str(tmp_path),
+                    preexec_fn=preexec,
                 )
             except subprocess.TimeoutExpired:
                 res = TestCaseResult(
