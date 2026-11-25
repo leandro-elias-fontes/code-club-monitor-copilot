@@ -123,6 +123,12 @@ def serve_index() -> HTMLResponse:
     return HTMLResponse("<h1>Code Monitor Copilot API Online</h1>")
 
 
+@app.get("/health")
+def lightweight_health() -> dict[str, str]:
+    """Lightweight health check for Docker / Hugging Face Spaces."""
+    return {"status": "ok"}
+
+
 @app.get("/api/health")
 def health_check() -> dict[str, Any]:
     """Return engine health and trained model metadata."""

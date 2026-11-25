@@ -1,4 +1,14 @@
-# Code Monitor Copilot (Zero-API Dual-ML Engine + Vercel)
+---
+title: Code Monitor Copilot
+emoji: 💻
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+# Code Monitor Copilot (Zero-API Dual-ML Engine + Sandbox)
 
 Aplicação web e motor de inteligência artificial **100% independente de chaves de API externas** para monitores e instrutores de programação competitiva e algoritmos (**C, C++ e Python**).
 

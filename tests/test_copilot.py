@@ -219,6 +219,10 @@ def test_zero_api_trained_ml_engine_on_unseen_submissions() -> None:
 def test_vercel_fastapi_endpoints() -> None:
     client = TestClient(app)
 
+    r_root_health = client.get("/health")
+    assert r_root_health.status_code == 200
+    assert r_root_health.json() == {"status": "ok"}
+
     r_health = client.get("/api/health")
     assert r_health.status_code == 200
     assert r_health.json()["zero_api_mode"] is True
